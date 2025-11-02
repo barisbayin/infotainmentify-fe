@@ -40,6 +40,7 @@ const STATUSES = [
 const EMPTY: Omit<TopicGenerationProfileDetailDto, "id"> = {
   promptId: 0,
   aiConnectionId: 0,
+  profileName: "",
   modelName: "",
   requestedCount: 1,
   rawResponseJson: "{}",
@@ -103,6 +104,7 @@ export default function TopicGenerationProfilesPage() {
     try {
       const dto = await topicProfilesApi.get(item.id);
       setForm({
+        profileName: dto.profileName,
         promptId: dto.promptId,
         aiConnectionId: dto.aiConnectionId,
         modelName: dto.modelName,
@@ -127,8 +129,13 @@ export default function TopicGenerationProfilesPage() {
   }
 
   async function onSave() {
-    if (!form.promptId || !form.aiConnectionId || !form.modelName.trim()) {
-      toast.error("Prompt, bağlantı ve model adı zorunludur");
+    if (
+      !form.promptId ||
+      !form.aiConnectionId ||
+      !form.modelName.trim() ||
+      !form.profileName?.trim()
+    ) {
+      toast.error("Prompt, bağlantı, model adı ve profil adı zorunludur");
       return;
     }
 
@@ -192,6 +199,7 @@ export default function TopicGenerationProfilesPage() {
               <THead>
                 <TR>
                   <TH>ID</TH>
+                  <TH>Profil Adı</TH>
                   <TH>Prompt</TH>
                   <TH>Bağlantı</TH>
                   <TH>Model</TH>
@@ -210,6 +218,7 @@ export default function TopicGenerationProfilesPage() {
                     ].join(" ")}
                   >
                     <TD>#{x.id}</TD>
+                    <TD>{x.profileName}</TD>
                     <TD>{x.promptName}</TD>
                     <TD>{x.aiProvider}</TD>
                     <TD>{x.modelName}</TD>
@@ -238,6 +247,14 @@ export default function TopicGenerationProfilesPage() {
                 <div className="p-3 text-sm text-neutral-500">Yükleniyor…</div>
               ) : (
                 <div className="flex flex-col gap-4 flex-1">
+                  <Field label="Profil Adı">
+                    <Input
+                      value={form.profileName}
+                      onChange={(e) =>
+                        setForm({ ...form, profileName: e.target.value })
+                      }
+                    />
+                  </Field>
                   <Field label="Prompt">
                     <SelectBox
                       value={form.promptId.toString()}

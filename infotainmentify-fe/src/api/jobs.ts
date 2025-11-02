@@ -16,6 +16,7 @@ export interface JobSettingListDto {
     status: JobStatus;
     lastRunAt?: string | null;
     lastError?: string | null;
+    lastErrorAt?: Date | null;
 }
 
 export interface JobSettingDetailDto extends JobSettingListDto { }

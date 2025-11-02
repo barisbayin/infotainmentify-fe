@@ -5,6 +5,7 @@ import { http } from "./http";
 // -------------------------
 export interface TopicGenerationProfileListDto {
     id: number;
+    profileName?: string;
     modelName: string;
     promptName?: string;
     aiProvider?: string;
@@ -16,6 +17,7 @@ export interface TopicGenerationProfileListDto {
 
 export interface TopicGenerationProfileDetailDto {
     id: number;
+    profileName?: string;
     promptId: number;
     aiConnectionId: number;
     modelName: string;

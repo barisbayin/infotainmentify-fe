@@ -25,6 +25,8 @@ import {
 import toast from "react-hot-toast";
 import { useConfirm } from "../components/confirm";
 import { http } from "../api/http";
+import { Check, X, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import type { JSX } from "react";
 
 /* ---------------------------------------
    🔧 Enum ve UI tanımları
@@ -33,9 +35,9 @@ import { http } from "../api/http";
 // Job türleri
 const JOB_TYPES = [
   { value: "TopicGeneration", label: "Topic Üretimi" },
-  //   { value: "StoryGeneration", label: "Story Üretimi" },
-  //   { value: "YouTubeUpload", label: "YouTube Yükleme" },
-  //   { value: "ThumbnailRender", label: "Küçük Görsel Render" },
+  // { value: "StoryGeneration", label: "Story Üretimi" },
+  // { value: "YouTubeUpload", label: "YouTube Yükleme" },
+  // { value: "ThumbnailRender", label: "Küçük Görsel Render" },
 ];
 
 // JobType -> ProfileType eşleme
@@ -46,12 +48,31 @@ const PROFILE_TYPE_MAP: Record<string, string> = {
   ThumbnailRender: "ThumbnailRenderProfile",
 };
 
-// Durum renkleri
-const STATUS_COLORS: Record<string, string> = {
-  Pending: "text-gray-500",
-  Running: "text-blue-500",
-  Success: "text-green-600",
-  Failed: "text-red-500",
+// Durum stilleri
+const STATUS_STYLES: Record<
+  string,
+  { color: string; icon?: JSX.Element; label?: string }
+> = {
+  Pending: {
+    color: "text-gray-500",
+    icon: <Clock size={16} />,
+    label: "Bekliyor",
+  },
+  Running: {
+    color: "text-blue-500",
+    icon: <Loader2 className="animate-spin" size={16} />,
+    label: "Çalışıyor",
+  },
+  Success: {
+    color: "text-green-600",
+    icon: <CheckCircle size={16} />,
+    label: "Başarılı",
+  },
+  Failed: {
+    color: "text-red-500",
+    icon: <XCircle size={16} />,
+    label: "Hata",
+  },
 };
 
 /* ---------------------------------------
@@ -83,6 +104,12 @@ export default function JobSettingsPage() {
     }
   }
 
+  useEffect(() => {
+    load();
+    const intv = setInterval(load, 10_000); // 🔄 her 10sn’de bir yenile
+    return () => clearInterval(intv);
+  }, []);
+
   /* ---------------------------------------
      ⚙️ Profil listesi
   ----------------------------------------*/
@@ -92,42 +119,36 @@ export default function JobSettingsPage() {
       return;
     }
 
-    // 🧭 Mapping: backend sınıf adından endpoint'e
-    const shortName = profileType.includes(".")
-      ? profileType.split(".").pop()! // "Core.Entity.TopicGenerationProfile" → "TopicGenerationProfile"
-      : profileType;
-
+    const cleanedType = profileType.split(",")[0].split(".").pop()!;
     const endpointMap: Record<string, string> = {
       TopicGenerationProfile: "topicgenerationprofiles",
-      //   StoryGenerationProfile: "storygenerationprofiles",
-      //   YouTubeUploadProfile: "youtubeuploadprofiles",
-      //   ThumbnailRenderProfile: "thumbnailrenderprofiles",
+      StoryGenerationProfile: "storygenerationprofiles",
+      YouTubeUploadProfile: "youtubeuploadprofiles",
+      ThumbnailRenderProfile: "thumbnailrenderprofiles",
     };
-
-    const apiPath = endpointMap[shortName];
+    const apiPath = endpointMap[cleanedType];
     if (!apiPath) {
-      console.warn(`⚠️ Bilinmeyen profil tipi: ${profileType}`);
-      toast.error("Desteklenmeyen profil tipi");
+      toast.error(`Desteklenmeyen profil tipi: ${cleanedType}`);
       return;
     }
 
     try {
       const list = await http<any[]>(`/api/${apiPath}`);
       const opts = list.map((x) => ({
-        value: String(x.id), // 🔥 burada düzelt
-        label: x.name ?? `#${x.id}`,
+        value: String(x.id),
+        label: `${x.id} — ${
+          x.profileName?.trim() ||
+          x.name?.trim() ||
+          x.title?.trim() ||
+          "(İsimsiz Profil)"
+        }`,
       }));
       setProfileOptions(opts);
-    } catch (err) {
-      console.error("Profil listesi yüklenemedi", err);
+    } catch {
       toast.error("Profil listesi yüklenemedi");
       setProfileOptions([]);
     }
   }
-
-  useEffect(() => {
-    load();
-  }, []);
 
   /* ---------------------------------------
      📄 Satır seçimi
@@ -153,18 +174,9 @@ export default function JobSettingsPage() {
      💾 Kaydet
   ----------------------------------------*/
   async function onSave() {
-    if (!form.name?.trim()) {
-      toast.error("Job adı zorunludur");
-      return;
-    }
-    if (!form.jobType) {
-      toast.error("Job tipi seçilmelidir");
-      return;
-    }
-    if (!form.profileId) {
-      toast.error("Bir profil seçilmelidir");
-      return;
-    }
+    if (!form.name?.trim()) return toast.error("Job adı zorunludur");
+    if (!form.jobType) return toast.error("Job tipi seçilmelidir");
+    if (!form.profileId) return toast.error("Bir profil seçilmelidir");
 
     setSaving(true);
     try {
@@ -229,7 +241,6 @@ export default function JobSettingsPage() {
       profileType: newProfileType,
       profileId: undefined,
     }));
-
     if (newProfileType) await loadProfiles(newProfileType);
   }
 
@@ -240,7 +251,7 @@ export default function JobSettingsPage() {
     <Page>
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* SOL: Liste */}
-        <section className="col-span-12 xl:col-span-7 flex flex-col min-h-0">
+        <section className="col-span-12 xl:col-span-8 flex flex-col min-h-0">
           <Toolbar>
             <Button onClick={load} disabled={loading}>
               {loading ? "Yükleniyor…" : "Yenile"}
@@ -256,10 +267,10 @@ export default function JobSettingsPage() {
                 <TR>
                   <TH>ID</TH>
                   <TH>Ad</TH>
-                  <TH>Tip</TH>
                   <TH>Durum</TH>
-                  <TH>Periyot (saat)</TH>
                   <TH>AutoRun</TH>
+                  <TH>Periyot</TH>
+                  <TH>Son Çalışma</TH>
                   <TH>Son Hata</TH>
                 </TR>
               </THead>
@@ -269,20 +280,46 @@ export default function JobSettingsPage() {
                     key={x.id}
                     onClick={() => onRowClick(x)}
                     className={[
-                      "cursor-pointer border-b hover:bg-neutral-50",
+                      "cursor-pointer border-b hover:bg-neutral-50 transition-colors",
                       selectedId === x.id ? "bg-neutral-100" : "",
+                      x.status === "Running" ? "bg-blue-50 animate-pulse" : "",
                     ].join(" ")}
                   >
                     <TD>#{x.id}</TD>
                     <TD>{x.name}</TD>
-                    <TD>{x.jobType}</TD>
-                    <TD className={STATUS_COLORS[x.status] || ""}>
-                      {x.status}
+                    <TD>
+                      <div
+                        className={`flex items-center gap-1 ${
+                          STATUS_STYLES[x.status]?.color
+                        }`}
+                      >
+                        {STATUS_STYLES[x.status]?.icon}
+                        <span>
+                          {STATUS_STYLES[x.status]?.label ?? x.status}
+                        </span>
+                      </div>
+                    </TD>
+                    <TD className="text-center">
+                      {x.isAutoRunEnabled ? (
+                        <Check
+                          className="text-green-600 inline-block"
+                          size={18}
+                        />
+                      ) : (
+                        <X className="text-red-500 inline-block" size={18} />
+                      )}
                     </TD>
                     <TD>{x.periodHours ?? "-"}</TD>
-                    <TD>{x.isAutoRunEnabled ? "Evet" : "Hayır"}</TD>
-                    <TD className="text-red-500 text-xs truncate max-w-[160px]">
-                      {x.lastError ?? ""}
+                    <TD className="text-xs text-gray-600">
+                      {x.lastRunAt
+                        ? new Date(x.lastRunAt).toLocaleString()
+                        : "—"}
+                    </TD>
+                    <TD className="text-xs text-red-500 max-w-[180px] truncate">
+                      {x.lastErrorAt
+                        ? new Date(x.lastErrorAt).toLocaleTimeString()
+                        : ""}
+                      {x.lastError ? ` - ${x.lastError}` : ""}
                     </TD>
                   </TR>
                 ))}
@@ -292,7 +329,7 @@ export default function JobSettingsPage() {
         </section>
 
         {/* SAĞ: Detay */}
-        <section className="col-span-12 xl:col-span-5 flex flex-col min-h-0">
+        <section className="col-span-12 xl:col-span-4 flex flex-col min-h-0">
           <Card className="flex-1 flex flex-col">
             <CardHeader>
               <div className="text-lg font-semibold">

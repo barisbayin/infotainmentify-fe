@@ -8,6 +8,7 @@ import AiIntegrationsPage from "./pages/AiIntegrationsPage";
 import SocialChannelsPage from "./pages/SocialChannelsPage";
 import TopicGenerationProfilesPage from "./pages/TopicGenerationProfilesPage";
 import JobSettingsPage from "./pages/JobSettingsPage";
+import JobExecutionsPage from "./pages/JobExecutionsPage";
 
 export const routes = [
   { path: "/dashboard", element: DashboardPage },
@@ -20,4 +21,5 @@ export const routes = [
   { path: "/social-channels", element: SocialChannelsPage },
   { path: "/topic-generation-profiles", element: TopicGenerationProfilesPage },
   { path: "/job-settings", element: JobSettingsPage },
+  { path: "/job-executions", element: JobExecutionsPage },
 ];
