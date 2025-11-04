@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { login } from "../api";
 
 const field =
   "block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-gray-900";

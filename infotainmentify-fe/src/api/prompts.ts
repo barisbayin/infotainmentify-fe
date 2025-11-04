@@ -1,4 +1,4 @@
-import { http, qs } from "./http";
+import { http } from "./http";
 import type { Prompt } from "./types";
 
 export type PromptDetailDto = Omit<Prompt, "createdAt" | "updatedAt"> & { id: number };

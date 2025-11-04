@@ -27,6 +27,7 @@ const EMPTY: Omit<Prompt, "id"> = {
   language: "en-US",
   isActive: true,
   body: "",
+  systemPrompt: "",
 };
 
 export default function PromptsPage() {
@@ -66,6 +67,7 @@ export default function PromptsPage() {
         language: dto.language ?? "",
         isActive: !!dto.isActive,
         body: dto.body ?? "",
+        systemPrompt: dto.systemPrompt ?? "",
       });
     } finally {
       setDetailLoading(false);
@@ -268,16 +270,37 @@ export default function PromptsPage() {
                     <span className="text-sm text-neutral-700">Aktif</span>
                   </label>
 
-                  {/* 🔥 body tam esner */}
+                  {/* 🧠 System Prompt */}
                   <Field
-                    label="Prompt İçeriği"
-                    className="flex-1 flex flex-col"
+                    label="System Prompt (Modelin Rolü)"
+                    className="flex flex-col mb-4"
                   >
                     <Textarea
-                      className="flex-1 resize-none overflow-auto border border-neutral-300 rounded-xl 
-                                 bg-neutral-50 px-3 py-2 font-mono text-sm focus:outline-none 
-                                 focus:ring-2 focus:ring-neutral-300 transition-all"
-                      placeholder="Prompt metnini buraya yazın…"
+                      className="min-h-[120px] resize-none overflow-auto border border-neutral-300 rounded-xl 
+               bg-neutral-50 px-3 py-2 font-mono text-sm focus:outline-none 
+               focus:ring-2 focus:ring-neutral-300 transition-all"
+                      placeholder='Örn: "Sen viral kısa videolar konusunda uzman bir metin yazarı ve stratejistsin."'
+                      value={form.systemPrompt ?? ""}
+                      onChange={(e) =>
+                        setForm({ ...form, systemPrompt: e.target.value })
+                      }
+                    />
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Modelin davranışını tanımlar. (örnek: "Sen YouTube Shorts
+                      konusunda uzman bir içerik üreticisisin.")
+                    </p>
+                  </Field>
+
+                  {/* ✍️ Prompt İçeriği */}
+                  <Field
+                    label="Prompt İçeriği"
+                    className="flex flex-col flex-1"
+                  >
+                    <Textarea
+                      className="min-h-[200px] flex-1 resize-none overflow-auto border border-neutral-300 rounded-xl 
+               bg-neutral-50 px-3 py-2 font-mono text-sm focus:outline-none 
+               focus:ring-2 focus:ring-neutral-300 transition-all"
+                      placeholder="Kullanıcı girdisini işlemek için asıl prompt içeriğini buraya yazın…"
                       value={form.body}
                       onChange={(e) =>
                         setForm({ ...form, body: e.target.value })

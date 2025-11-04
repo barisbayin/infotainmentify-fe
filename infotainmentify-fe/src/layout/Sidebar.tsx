@@ -61,7 +61,7 @@ export default function Sidebar({
         {/* Başlık */}
         <div className="h-14 flex items-center px-3 border-b border-neutral-200 overflow-x-hidden">
           <img
-            src="public/logo.png"
+            src="/logo.png"
             alt="Infotainmentify"
             className="h-7 w-7 mr-2 rounded-lg object-contain"
           />

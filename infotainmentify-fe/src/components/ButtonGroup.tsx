@@ -1,6 +1,3 @@
-import React from "react";
-import { Button } from "./ui-kit";
-
 type ButtonGroupProps<T extends string | number = string> = {
   value: T;
   onChange: (v: T) => void;

@@ -5,6 +5,7 @@ export type Prompt = {
     language?: string | null;
     isActive: boolean;
     body: string;
+    systemPrompt?: string | null;
     createdAt?: string;
     updatedAt?: string | null;
 };
