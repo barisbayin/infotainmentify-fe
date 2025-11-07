@@ -14,32 +14,47 @@ import {
   Textarea,
   Modal,
 } from "../components/ui-kit";
-import { topicsApi, promptsApi, type Topic } from "../api";
+import {
+  topicsApi,
+  type TopicListDto,
+  type TopicDetailDto,
+} from "../api/topics";
 import toast from "react-hot-toast";
 import { useConfirm } from "../components/confirm";
 import SelectBox from "../components/SelectBox";
 import ButtonGroup from "../components/ButtonGroup";
-import { Tooltip } from "../components/ui-kit";
+import { promptsApi } from "../api/prompts";
+import Tooltip from "../components/Tooltip";
+import Switch from "../components/Switch";
 
-type TopicRow = Topic & { promptTitle?: string };
-
-const EMPTY_TOPIC: Omit<Topic, "id"> = {
+const EMPTY_TOPIC: TopicDetailDto = {
+  id: 0,
   topicCode: "",
   category: "",
-  premiseTr: "",
+  subCategory: "",
+  series: "",
   premise: "",
+  premiseTr: "",
   tone: "",
   potentialVisual: "",
+  renderStyle: "",
+  voiceHint: "",
+  scriptHint: "",
   needsFootage: false,
   factCheck: false,
-  tagsJson: "",
   topicJson: "",
+  scriptGenerated: false,
   promptId: null,
+  promptName: "",
+  scriptId: null,
+  scriptTitle: "",
+  scriptGeneratedAt: "",
+  priority: 5,
   isActive: true,
 };
 
 export default function TopicsPage() {
-  const [items, setItems] = useState<TopicRow[]>([]);
+  const [items, setItems] = useState<TopicListDto[]>([]);
   const [prompts, setPrompts] = useState<{ id: number; title: string }[]>([]);
   const [promptFilter, setPromptFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<
@@ -47,16 +62,14 @@ export default function TopicsPage() {
   >("all");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [showDetail, setShowDetail] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [form, setForm] = useState<Omit<Topic, "id">>(EMPTY_TOPIC);
-
+  const [form, setForm] = useState<TopicDetailDto>(EMPTY_TOPIC);
   const confirm = useConfirm();
   const debouncedQ = useDebouncedValue(q, 300);
+  const scrollContainer = useRef<HTMLDivElement>(null);
 
-  // --- Load list & prompts
   async function load() {
     setLoading(true);
     try {
@@ -88,20 +101,18 @@ export default function TopicsPage() {
     loadPrompts();
   }, []);
 
-  // --- Filters
   const filteredItems = items.filter((i) => {
     if (promptFilter && String(i.promptId ?? "") !== promptFilter) return false;
     if (statusFilter === "active" && !i.isActive) return false;
     if (statusFilter === "passive" && i.isActive) return false;
     return (
-      i.topicCode.toLowerCase().includes(q.toLowerCase()) ||
       i.premise?.toLowerCase().includes(q.toLowerCase()) ||
-      i.premiseTr?.toLowerCase().includes(q.toLowerCase())
+      i.premiseTr?.toLowerCase().includes(q.toLowerCase()) ||
+      i.category?.toLowerCase().includes(q.toLowerCase())
     );
   });
 
-  // --- Row actions
-  async function toggleActive(row: TopicRow) {
+  async function toggleActive(row: TopicListDto) {
     try {
       await topicsApi.toggleActive(row.id, !row.isActive);
       setItems((prev) =>
@@ -115,7 +126,7 @@ export default function TopicsPage() {
     }
   }
 
-  async function onDetailClick(row: TopicRow) {
+  async function onDetailClick(row: TopicListDto) {
     setShowDetail(true);
     setSelectedId(row.id);
     setDetailLoading(true);
@@ -123,7 +134,6 @@ export default function TopicsPage() {
       const dto = await topicsApi.get(row.id);
       setForm({
         ...dto,
-        tagsJson: formatJson(dto.tagsJson),
         topicJson: formatJson(dto.topicJson),
       });
     } catch {
@@ -134,9 +144,8 @@ export default function TopicsPage() {
   }
 
   async function onSave() {
-    if (!selectedId) return;
     try {
-      await toast.promise(topicsApi.update(selectedId, form), {
+      await toast.promise(topicsApi.save(form), {
         loading: "Kaydediliyor…",
         success: "Güncellendi",
         error: "Kaydetme hatası",
@@ -146,7 +155,7 @@ export default function TopicsPage() {
     } catch {}
   }
 
-  async function onDelete(row: TopicRow) {
+  async function onDelete(row: TopicListDto) {
     const ok = await confirm({
       title: "Silinsin mi?",
       message: <>#{row.id} silinecek, emin misin?</>,
@@ -162,197 +171,160 @@ export default function TopicsPage() {
     }
   }
 
-  // --- Render
+  function StatusDot({ active, text }: { active: boolean; text: string }) {
+    return (
+      <div className="inline-flex items-center gap-1">
+        <span
+          className={`w-2 h-2 rounded-full ${
+            active ? "bg-green-500" : "bg-gray-300"
+          }`}
+        ></span>
+        <span className="text-xs text-neutral-700">{text}</span>
+      </div>
+    );
+  }
+
   return (
-    <Page>
-      <Toolbar className="grid grid-cols-[1.5fr_1fr_auto_auto] gap-2">
-        <Input
-          placeholder="Ara… (code / premise)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+    <Page className="flex flex-col h-full bg-neutral-50 overflow-hidden">
+      {/* --- Toolbar --- */}
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm rounded-t-2xl">
+        <Toolbar className="grid grid-cols-[1.5fr_1fr_auto_auto] gap-2 p-2 rounded-t-2xl bg-white">
+          <Input
+            placeholder="Ara…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
 
-        <SelectBox
-          value={promptFilter}
-          onChange={(v) => setPromptFilter(v)}
-          options={[
-            { value: "", label: "Tüm Promptlar" },
-            ...prompts.map((p) => ({ value: String(p.id), label: p.title })),
-          ]}
-        />
+          <SelectBox
+            value={promptFilter}
+            onChange={(v) => setPromptFilter(v)}
+            options={[
+              { value: "", label: "Tüm Promptlar" },
+              ...prompts.map((p) => ({ value: String(p.id), label: p.title })),
+            ]}
+          />
 
-        <ButtonGroup
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { label: "Hepsi", value: "all" },
-            { label: "Aktif", value: "active" },
-            { label: "Pasif", value: "passive" },
-          ]}
-        />
+          <ButtonGroup
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { label: "Hepsi", value: "all" },
+              { label: "Aktif", value: "active" },
+              { label: "Pasif", value: "passive" },
+            ]}
+          />
 
-        <Button onClick={load} disabled={loading}>
-          {loading ? "Yükleniyor…" : "Yenile"}
-        </Button>
-      </Toolbar>
+          <Button onClick={load} disabled={loading}>
+            {loading ? "Yükleniyor…" : "Yenile"}
+          </Button>
+        </Toolbar>
+      </div>
 
-      <Card className="mt-3 flex-1 overflow-auto">
-        <Table>
-          <THead>
-            <TR>
-              <TH>ID</TH>
-              <TH>Kod</TH>
-              <TH>Prompt</TH>
-              <TH>Premise (TR)</TH>
-              <TH>Premise (EN)</TH>
-              <TH>Aktif</TH>
-              <TH className="text-right">İşlemler</TH>
-            </TR>
-          </THead>
-          <tbody>
-            {filteredItems.map((r) => (
-              <TR key={r.id} className="hover:bg-neutral-50">
-                <TD>#{r.id}</TD>
-                <TD>{r.topicCode}</TD>
-                <TD>{r.promptTitle ?? `#${r.promptId ?? "—"}`}</TD>
-                <TD className="text-xs max-w-[250px] truncate">
-                  <Tooltip text={r.premiseTr ?? "—"}>
-                    {r.premiseTr ?? "—"}
-                  </Tooltip>
-                </TD>
-                <TD className="text-xs max-w-[250px] truncate">
-                  <Tooltip text={r.premise ?? "—"}>{r.premise ?? "—"}</Tooltip>
-                </TD>
-                <TD>
-                  <label className="inline-flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={r.isActive}
-                      onChange={() => toggleActive(r)}
-                    />
-                    <span className="text-xs">
-                      {r.isActive ? "Aktif" : "Pasif"}
-                    </span>
-                  </label>
-                </TD>
-                <TD className="text-right">
-                  <div className="inline-flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onDetailClick(r)}
-                    >
-                      Detay
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => onDelete(r)}
-                    >
-                      Sil
-                    </Button>
-                  </div>
-                </TD>
-              </TR>
-            ))}
-          </tbody>
-        </Table>
-      </Card>
+      {/* --- Table Container --- */}
+      <div className="flex-1 p-4 overflow-hidden">
+        <Card className="h-full bg-white rounded-2xl shadow-sm flex flex-col overflow-hidden">
+          {/* Scroll alanı sadece burada */}
+          <div
+            ref={scrollContainer}
+            className="flex-1 overflow-auto px-1 pb-1 rounded-b-2xl scrollbar-thin scrollbar-thumb-neutral-400 scrollbar-track-transparent"
+          >
+            <Table>
+              <THead>
+                <TR>
+                  <TH>ID</TH>
+                  <TH>Kategori</TH>
+                  <TH>Alt Kategori</TH>
+                  <TH style={{ width: "280px" }}>Premise</TH>
+                  <TH>Prompt</TH>
+                  <TH>Script</TH>
+                  <TH>Script Durumu</TH>
+                  <TH>Aktif</TH>
+                  <TH className="text-right">İşlemler</TH>
+                </TR>
+              </THead>
+              <tbody>
+                {filteredItems.map((r) => (
+                  <TR key={r.id} className="hover:bg-neutral-50">
+                    <TD className="font-mono text-xs">#{r.id}</TD>
+                    <TD>{r.category ?? "—"}</TD>
+                    <TD>{r.subCategory ?? "—"}</TD>
 
-      {/* --- DETAIL MODAL --- */}
-      {showDetail && (
-        <Modal onClose={() => setShowDetail(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
-            {/* --- Header --- */}
-            <div className="sticky top-0 z-10 bg-white border-b p-4 flex justify-between items-center">
-              <div className="font-semibold text-lg">
-                Topic Detayı #{selectedId}
-              </div>
-              <button
-                onClick={() => setShowDetail(false)}
-                className="text-neutral-500 hover:text-neutral-700 text-xl leading-none"
-              >
-                ×
-              </button>
-            </div>
+                    <TD className="max-w-[280px]">
+                      <Tooltip
+                        text={`EN: ${r.premise ?? "—"}\nTR: ${
+                          r.premiseTr ?? "—"
+                        }`}
+                        maxWidth="360px"
+                      >
+                        <div className="text-[12px] text-neutral-800 line-clamp-2 leading-snug">
+                          {r.premise ?? "—"}
+                        </div>
+                        <div className="text-[11px] text-neutral-500 line-clamp-1 leading-snug">
+                          {r.premiseTr ?? ""}
+                        </div>
+                      </Tooltip>
+                    </TD>
 
-            {/* --- Scrollable body --- */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {detailLoading ? (
-                <div>Yükleniyor…</div>
-              ) : (
-                <>
-                  <Field label="Topic Code">
-                    <Input
-                      value={form.topicCode}
-                      onChange={(e) =>
-                        setForm({ ...form, topicCode: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Category">
-                    <Input
-                      value={form.category ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, category: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Premise (TR)">
-                    <Textarea
-                      rows={3}
-                      value={form.premiseTr ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, premiseTr: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Premise (EN)">
-                    <Textarea
-                      rows={3}
-                      value={form.premise ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, premise: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Tags JSON">
-                    <Textarea
-                      rows={6}
-                      value={form.tagsJson ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, tagsJson: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Topic JSON">
-                    <Textarea
-                      rows={8}
-                      value={form.topicJson ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, topicJson: e.target.value })
-                      }
-                    />
-                  </Field>
-                </>
-              )}
-            </div>
+                    <TD>
+                      {r.promptName ? (
+                        <span className="text-xs text-neutral-700">
+                          {r.promptName}{" "}
+                          <span className="text-neutral-400">
+                            #{r.promptId}
+                          </span>
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </TD>
 
-            {/* --- Footer --- */}
-            <div className="sticky bottom-0 bg-white border-t p-4 flex justify-end gap-2">
-              <Button onClick={() => setShowDetail(false)}>Kapat</Button>
-              <Button variant="primary" onClick={onSave}>
-                Kaydet
-              </Button>
-            </div>
+                    <TD>{r.scriptTitle ?? "—"}</TD>
+
+                    <TD>
+                      <StatusDot
+                        active={r.scriptGenerated}
+                        text={r.scriptGenerated ? "Hazır" : "Bekliyor"}
+                      />
+                    </TD>
+
+                    <TD>
+                      <Switch
+                        checked={r.isActive}
+                        onChange={() => toggleActive(r)}
+                        label={r.isActive ? "Aktif" : "Pasif"}
+                      />
+                    </TD>
+
+                    <TD className="text-right">
+                      <div className="inline-flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onDetailClick(r)}
+                        >
+                          Detay
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => onDelete(r)}
+                        >
+                          Sil
+                        </Button>
+                      </div>
+                    </TD>
+                  </TR>
+                ))}
+              </tbody>
+            </Table>
           </div>
-        </Modal>
-      )}
+        </Card>
+      </div>
     </Page>
   );
 }
 
-// --- Helpers
+// --- Helpers ---
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [debounced, setDebounced] = useState(value);
   const t = useRef<number | null>(null);

@@ -10,23 +10,23 @@ export type Prompt = {
     updatedAt?: string | null;
 };
 
-export type Topic = {
-    id: number;
-    topicCode: string;
-    category?: string | null;
-    premiseTr?: string | null;
-    premise?: string | null;
-    tone?: string | null;
-    potentialVisual?: string | null;
-    needsFootage: boolean;
-    factCheck: boolean;
-    tagsJson?: string | null;
-    topicJson?: string | null;
-    promptId?: number | null;
-    createdAt?: string;
-    updatedAt?: string | null;
-    isActive: boolean;
-};
+// export type Topic = {
+//     id: number;
+//     topicCode: string;
+//     category?: string | null;
+//     premiseTr?: string | null;
+//     premise?: string | null;
+//     tone?: string | null;
+//     potentialVisual?: string | null;
+//     needsFootage: boolean;
+//     factCheck: boolean;
+//     tagsJson?: string | null;
+//     topicJson?: string | null;
+//     promptId?: number | null;
+//     createdAt?: string;
+//     updatedAt?: string | null;
+//     isActive: boolean;
+// };
 
 export class HttpError extends Error {
     status: number;
@@ -51,24 +51,24 @@ export type AuthUser = {
 };
 export type AuthResponse = { token: string; user: AuthUser };
 
-export type GenerateTopicsRequest = {
-    promptId: number;
-    count?: number;
-    language?: string | null;
-    category?: string | null;
-    tone?: string | null;
-    needsFootage?: boolean;
-    factCheck?: boolean;
-    tagsJson?: string | null;
-    seedNotes?: string | null;
-    ownerUserId?: number | null;
-    dryRun?: boolean;
-};
-export type GenerateTopicsResponse = {
-    jobId?: number;
-    createdTopicIds?: number[];
-    previewTitles?: string[];
-};
+// export type GenerateTopicsRequest = {
+//     promptId: number;
+//     count?: number;
+//     language?: string | null;
+//     category?: string | null;
+//     tone?: string | null;
+//     needsFootage?: boolean;
+//     factCheck?: boolean;
+//     tagsJson?: string | null;
+//     seedNotes?: string | null;
+//     ownerUserId?: number | null;
+//     dryRun?: boolean;
+// };
+// export type GenerateTopicsResponse = {
+//     jobId?: number;
+//     createdTopicIds?: number[];
+//     previewTitles?: string[];
+// };
 
 // DTO tipleri (BE ile uyumlu)
 export type AiProviderType = "OpenAI" | "GoogleVertex" | "DeepSeek" | "AzureOpenAI" | "Anthropic";

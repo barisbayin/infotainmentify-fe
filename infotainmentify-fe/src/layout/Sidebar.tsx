@@ -10,6 +10,8 @@ import {
   ChevronDown,
   ChevronRight,
   Shield,
+  BookIcon,
+  AwardIcon,
 } from "lucide-react";
 
 type Props = {
@@ -124,10 +126,22 @@ export default function Sidebar({
                 label="Konular"
               />
               <SidebarLink
+                to="/scripts"
+                icon={BookIcon}
+                collapsed={collapsed}
+                label="Senaryolar"
+              />
+              <SidebarLink
                 to="/topic-generation-profiles"
                 icon={Sparkles}
                 collapsed={collapsed}
                 label="Konu Üretim Profilleri"
+              />
+              <SidebarLink
+                to="/script-generation-profiles"
+                icon={AwardIcon}
+                collapsed={collapsed}
+                label="Senaryo Üretim Profilleri"
               />
             </SidebarSubList>
           )}

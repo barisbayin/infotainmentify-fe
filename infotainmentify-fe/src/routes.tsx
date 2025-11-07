@@ -9,6 +9,8 @@ import SocialChannelsPage from "./pages/SocialChannelsPage";
 import TopicGenerationProfilesPage from "./pages/TopicGenerationProfilesPage";
 import JobSettingsPage from "./pages/JobSettingsPage";
 import JobExecutionsPage from "./pages/JobExecutionsPage";
+import ScriptListPage from "./pages/ScriptListPage";
+import ScriptGenerationProfilesPage from "./pages/ScriptGenerationProfilesPage";
 
 export const routes = [
   { path: "/dashboard", element: DashboardPage },
@@ -22,4 +24,9 @@ export const routes = [
   { path: "/topic-generation-profiles", element: TopicGenerationProfilesPage },
   { path: "/job-settings", element: JobSettingsPage },
   { path: "/job-executions", element: JobExecutionsPage },
+  { path: "/scripts", element: ScriptListPage },
+  {
+    path: "/script-generation-profiles",
+    element: ScriptGenerationProfilesPage,
+  },
 ];
