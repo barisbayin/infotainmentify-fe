@@ -28,6 +28,9 @@ import SelectBox from "../components/SelectBox";
 import Tooltip from "../components/Tooltip";
 import Switch from "../components/Switch";
 
+/* ===========================================================
+   🧩 DEFAULT TOPIC
+   =========================================================== */
 const EMPTY_TOPIC: TopicDetailDto = {
   id: 0,
   topicCode: "",
@@ -55,7 +58,13 @@ const EMPTY_TOPIC: TopicDetailDto = {
   allowScriptGeneration: true,
 };
 
+/* ===========================================================
+   📄 MAIN COMPONENT
+   =========================================================== */
 export default function TopicsPage() {
+  /* ===========================================================
+     📊 STATES
+     =========================================================== */
   const [items, setItems] = useState<TopicListDto[]>([]);
   const [prompts, setPrompts] = useState<{ id: number; title: string }[]>([]);
   const [promptFilter, setPromptFilter] = useState("");
@@ -75,7 +84,7 @@ export default function TopicsPage() {
      ⚙️ SCRIPT GENERATION MODAL STATES
      =========================================================== */
   const [showGenerate, setShowGenerate] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<TopicListDto | null>(null);
+  const [selectedTopicIds, setSelectedTopicIds] = useState<number[]>([]);
   const [scriptProfiles, setScriptProfiles] = useState<
     { id: number; name: string }[]
   >([]);
@@ -130,6 +139,9 @@ export default function TopicsPage() {
     loadPrompts();
   }, [debouncedQ]);
 
+  /* ===========================================================
+     🔍 FILTER
+     =========================================================== */
   const filtered = items.filter((i) => {
     if (promptFilter && String(i.promptId ?? "") !== promptFilter) return false;
     if (statusFilter === "active" && !i.isActive) return false;
@@ -215,25 +227,47 @@ export default function TopicsPage() {
   }
 
   /* ===========================================================
+     ✅ MULTI SELECTION
+     =========================================================== */
+  function toggleSelect(id: number) {
+    setSelectedTopicIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function selectAll() {
+    if (selectedTopicIds.length === filtered.length) {
+      setSelectedTopicIds([]);
+    } else {
+      setSelectedTopicIds(filtered.map((i) => i.id));
+    }
+  }
+
+  /* ===========================================================
      🚀 SCRIPT GENERATION
      =========================================================== */
-  async function openGenerateModal(row: TopicListDto) {
-    setSelectedTopic(row);
+  async function openGenerateModal(topicIds: number[]) {
+    setSelectedTopicIds(topicIds);
     setShowGenerate(true);
     if (scriptProfiles.length === 0) await loadProfiles();
   }
 
   async function handleGenerate() {
-    if (!selectedProfile || !selectedTopic) return;
+    if (!selectedProfile || selectedTopicIds.length === 0) {
+      toast.error("Profil ve en az bir topic seçilmelidir");
+      return;
+    }
+
     setGenLoading(true);
     try {
       const res = await scriptGeneratorApi.generateFromTopics({
         profileId: Number(selectedProfile),
-        topicIds: [selectedTopic.id],
+        topicIds: selectedTopicIds,
       });
 
       toast.success(res.message ?? "Üretim tamamlandı");
       setShowGenerate(false);
+      setSelectedTopicIds([]);
       await load();
     } catch {
       toast.error("Üretim sırasında hata oluştu");
@@ -265,7 +299,7 @@ export default function TopicsPage() {
     <Page className="h-full bg-neutral-50">
       <div className="grid grid-cols-12 gap-4 h-full">
         <section className="col-span-12 flex flex-col min-h-0">
-          <Toolbar className="grid grid-cols-[1fr_220px_160px_auto] gap-2 items-center">
+          <Toolbar className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
             <Input
               placeholder="Ara…"
               value={q}
@@ -273,38 +307,13 @@ export default function TopicsPage() {
               className="h-[38px]"
             />
 
-            <SelectBox
-              value={promptFilter}
-              onChange={(v) => setPromptFilter(v)}
-              options={[
-                { value: "", label: "Tüm Promptlar" },
-                ...prompts.map((p) => ({
-                  value: String(p.id),
-                  label: p.title,
-                })),
-              ]}
-              className="h-[38px]"
-            />
-
-            <div className="flex items-center justify-between border border-neutral-300 rounded-lg h-[38px] overflow-hidden bg-white">
-              {[
-                { label: "Hepsi", value: "all" },
-                { label: "Aktif", value: "active" },
-                { label: "Pasif", value: "passive" },
-              ].map((opt, idx) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setStatusFilter(opt.value as any)}
-                  className={`flex-1 h-full text-sm transition-colors ${
-                    statusFilter === opt.value
-                      ? "bg-neutral-200 text-neutral-900"
-                      : "bg-white hover:bg-neutral-100 text-neutral-600"
-                  } ${idx !== 2 ? "border-r border-neutral-300" : ""}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <Button
+              variant="primary"
+              disabled={selectedTopicIds.length === 0}
+              onClick={() => openGenerateModal(selectedTopicIds)}
+            >
+              Seçilenleri Üret ({selectedTopicIds.length})
+            </Button>
 
             <Button onClick={load} disabled={loading} className="h-[38px]">
               {loading ? "Yükleniyor…" : "Yenile"}
@@ -316,6 +325,13 @@ export default function TopicsPage() {
             <Table>
               <THead>
                 <TR>
+                  <TH>
+                    <input
+                      type="checkbox"
+                      checked={selectedTopicIds.length === filtered.length}
+                      onChange={selectAll}
+                    />
+                  </TH>
                   <TH>ID</TH>
                   <TH>Kategori</TH>
                   <TH>Alt Kategori</TH>
@@ -332,6 +348,13 @@ export default function TopicsPage() {
               <tbody>
                 {filtered.map((r) => (
                   <TR key={r.id} className="hover:bg-neutral-50 border-b">
+                    <TD>
+                      <input
+                        type="checkbox"
+                        checked={selectedTopicIds.includes(r.id)}
+                        onChange={() => toggleSelect(r.id)}
+                      />
+                    </TD>
                     <TD className="font-mono text-xs">#{r.id}</TD>
                     <TD>{r.category ?? "—"}</TD>
                     <TD>{r.subCategory ?? "—"}</TD>
@@ -382,7 +405,7 @@ export default function TopicsPage() {
                             : "ghost"
                         }
                         disabled={!r.allowScriptGeneration || r.scriptGenerated}
-                        onClick={() => openGenerateModal(r)}
+                        onClick={() => openGenerateModal([r.id])}
                       >
                         {r.scriptGenerated
                           ? "Tamam"
@@ -423,7 +446,7 @@ export default function TopicsPage() {
           <div className="bg-white rounded-2xl shadow-xl w-[500px] flex flex-col overflow-hidden">
             <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
               <div className="font-semibold text-lg">
-                Script Üret — #{selectedTopic?.id} ({selectedTopic?.category})
+                Script Üret ({selectedTopicIds.length} topic)
               </div>
               <button
                 onClick={() => setShowGenerate(false)}
@@ -445,8 +468,7 @@ export default function TopicsPage() {
                 />
               </Field>
               <div className="text-sm text-neutral-500">
-                Bu işlem yalnızca <b>AllowScriptGeneration = true</b> ve{" "}
-                <b>ScriptGenerated = false</b> topicler için çalışır.
+                Bu işlem seçili topicler için yapılacaktır.
               </div>
             </div>
 
