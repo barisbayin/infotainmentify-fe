@@ -19,16 +19,12 @@ import {
   type ScriptListDto,
   type ScriptDetailDto,
 } from "../api/scripts";
-import { topicsApi, type TopicListDto } from "../api/topics";
 import toast from "react-hot-toast";
 import { useConfirm } from "../components/confirm";
-import SelectBox from "../components/SelectBox";
+import Switch from "../components/Switch";
+import Tooltip from "../components/Tooltip";
 import ButtonGroup from "../components/ButtonGroup";
 
-// ------------------- TYPES -------------------
-type ScriptRow = ScriptListDto;
-
-// ------------------- DEFAULT FORM -------------------
 const EMPTY_SCRIPT: ScriptDetailDto = {
   id: 0,
   topicId: 0,
@@ -42,90 +38,57 @@ const EMPTY_SCRIPT: ScriptDetailDto = {
   isActive: true,
 };
 
-// ------------------- COMPONENT -------------------
-export default function ScriptListPage() {
-  const [items, setItems] = useState<ScriptRow[]>([]);
-  const [topics, setTopics] = useState<TopicListDto[]>([]);
-  const [topicFilter, setTopicFilter] = useState<string>("");
+export default function ScriptsPage() {
+  const [items, setItems] = useState<ScriptListDto[]>([]);
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "passive"
   >("all");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [showDetail, setShowDetail] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm] = useState<ScriptDetailDto>(EMPTY_SCRIPT);
-
   const confirm = useConfirm();
   const debouncedQ = useDebouncedValue(q, 300);
 
-  // ------------------- LOADERS -------------------
+  // ---------------- LOAD ----------------
   async function load() {
     setLoading(true);
     try {
-      const list = await scriptsApi.list(
-        topicFilter ? Number(topicFilter) : undefined,
-        debouncedQ
-      );
+      const list = await scriptsApi.list(undefined, debouncedQ);
       setItems(list);
     } catch {
-      toast.error("Scriptler yüklenemedi");
+      toast.error("Script listesi yüklenemedi");
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadTopics() {
-    try {
-      const list = await topicsApi.list();
-      setTopics(list);
-    } catch {
-      toast.error("Topic listesi yüklenemedi");
-    }
-  }
-
   useEffect(() => {
     load();
-    loadTopics();
-  }, []);
+  }, [debouncedQ]);
 
-  // ------------------- FILTER -------------------
-  const filteredItems = items.filter((i) => {
-    if (statusFilter === "active" && !i.isActive) return false;
-    if (statusFilter === "passive" && i.isActive) return false;
-    return (
-      i.title.toLowerCase().includes(q.toLowerCase()) ||
-      (i.summary?.toLowerCase().includes(q.toLowerCase()) ?? false)
-    );
-  });
-
-  // ------------------- ROW ACTIONS -------------------
-  async function toggleActive(row: ScriptRow) {
+  // ---------------- ACTIONS ----------------
+  async function toggleActive(row: ScriptListDto) {
     try {
       await scriptsApi.toggleActive(row.id, !row.isActive);
       setItems((prev) =>
         prev.map((x) => (x.id === row.id ? { ...x, isActive: !x.isActive } : x))
       );
-      toast.success(
-        `Script #${row.id} ${!row.isActive ? "aktif" : "pasif"} yapıldı`
-      );
+      toast.success(`Script #${row.id} durumu değiştirildi`);
     } catch {
       toast.error("İşlem başarısız");
     }
   }
 
-  async function onDetailClick(row: ScriptRow) {
+  async function onDetailClick(row: ScriptListDto) {
     setShowDetail(true);
     setSelectedId(row.id);
     setDetailLoading(true);
     try {
       const dto = await scriptsApi.get(row.id);
-      setForm({
-        ...dto,
-        metaJson: formatJson(dto.metaJson),
-      });
+      setForm({ ...dto, metaJson: formatJson(dto.metaJson) });
     } catch {
       toast.error("Detay yüklenemedi");
     } finally {
@@ -145,7 +108,7 @@ export default function ScriptListPage() {
     } catch {}
   }
 
-  async function onDelete(row: ScriptRow) {
+  async function onDelete(row: ScriptListDto) {
     const ok = await confirm({
       title: "Silinsin mi?",
       message: <>#{row.id} silinecek, emin misin?</>,
@@ -161,108 +124,115 @@ export default function ScriptListPage() {
     }
   }
 
-  // ------------------- RENDER -------------------
+  // ---------------- FILTER ----------------
+  const filtered = items.filter((i) => {
+    if (statusFilter === "active" && !i.isActive) return false;
+    if (statusFilter === "passive" && i.isActive) return false;
+    return (
+      i.title.toLowerCase().includes(q.toLowerCase()) ||
+      (i.summary?.toLowerCase().includes(q.toLowerCase()) ?? false)
+    );
+  });
+
+  // ---------------- RENDER ----------------
   return (
-    <Page>
-      <Toolbar className="grid grid-cols-[1.5fr_1fr_auto_auto] gap-2">
-        <Input
-          placeholder="Ara… (title / summary)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+    <Page className="h-full bg-neutral-50">
+      <div className="grid grid-cols-12 gap-4 h-full">
+        <section className="col-span-12 flex flex-col min-h-0">
+          {/* Toolbar */}
+          <Toolbar className="grid grid-cols-[1fr_200px_auto] gap-2 items-center">
+            <Input
+              placeholder="Ara…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="h-[38px]"
+            />
+            <ButtonGroup
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { label: "Hepsi", value: "all" },
+                { label: "Aktif", value: "active" },
+                { label: "Pasif", value: "passive" },
+              ]}
+            />
+            <Button onClick={load} disabled={loading} className="h-[38px]">
+              {loading ? "Yükleniyor…" : "Yenile"}
+            </Button>
+          </Toolbar>
 
-        {/* <SelectBox
-          value={topicFilter}
-          onChange={(v) => setTopicFilter(v)}
-          options={[
-            { value: "", label: "Tüm Topicler" },
-            ...topics.map((t) => ({
-              value: String(t.id),
-              label: `${t.topicCode} - ${t.premise ?? ""}`,
-            })),
-          ]}
-        /> */}
+          {/* Table */}
+          <Card className="mt-3 flex-1 min-h-0 overflow-auto">
+            <Table>
+              <THead>
+                <TR>
+                  <TH>ID</TH>
+                  <TH>Topic</TH>
+                  <TH>Başlık</TH>
+                  <TH>Özet</TH>
+                  <TH>Dil</TH>
+                  <TH>Aktif</TH>
+                  <TH>Oluşturma</TH>
+                  <TH className="text-right">İşlemler</TH>
+                </TR>
+              </THead>
+              <tbody>
+                {filtered.map((r) => (
+                  <TR
+                    key={r.id}
+                    className="hover:bg-neutral-50 border-b border-neutral-100"
+                  >
+                    <TD className="font-mono text-xs">#{r.id}</TD>
+                    <TD>{r.topicCode ?? r.topicId}</TD>
+                    <TD className="max-w-[220px]">
+                      <Tooltip text={r.title}>
+                        <div className="line-clamp-2">{r.title}</div>
+                      </Tooltip>
+                    </TD>
+                    <TD className="max-w-[260px] text-xs text-neutral-600 line-clamp-2">
+                      {r.summary ?? "—"}
+                    </TD>
+                    <TD>{r.language.toUpperCase()}</TD>
+                    <TD>
+                      <Switch
+                        checked={!!r.isActive}
+                        onChange={() => toggleActive(r)}
+                        label={r.isActive ? "Aktif" : "Pasif"}
+                      />
+                    </TD>
+                    <TD className="text-xs text-neutral-500">
+                      {formatDate(r.createdAt)}
+                    </TD>
+                    <TD className="text-right">
+                      <div className="inline-flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onDetailClick(r)}
+                        >
+                          Detay
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => onDelete(r)}
+                        >
+                          Sil
+                        </Button>
+                      </div>
+                    </TD>
+                  </TR>
+                ))}
+              </tbody>
+            </Table>
+          </Card>
+        </section>
+      </div>
 
-        <ButtonGroup
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { label: "Hepsi", value: "all" },
-            { label: "Aktif", value: "active" },
-            { label: "Pasif", value: "passive" },
-          ]}
-        />
-
-        <Button onClick={load} disabled={loading}>
-          {loading ? "Yükleniyor…" : "Yenile"}
-        </Button>
-      </Toolbar>
-
-      <Card className="mt-3 flex-1 overflow-auto">
-        <Table>
-          <THead>
-            <TR>
-              <TH>ID</TH>
-              <TH>Topic</TH>
-              <TH>Başlık</TH>
-              <TH>Dil</TH>
-              <TH>Aktif</TH>
-              <TH>Oluşturulma</TH>
-              <TH className="text-right">İşlemler</TH>
-            </TR>
-          </THead>
-          <tbody>
-            {filteredItems.map((r) => (
-              <TR key={r.id} className="hover:bg-neutral-50">
-                <TD className="font-mono text-xs">#{r.id}</TD>
-                <TD>{r.topicCode ?? r.topicId}</TD>
-                <TD>{r.title}</TD>
-                <TD>{r.language.toUpperCase()}</TD>
-                <TD>
-                  <label className="inline-flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={r.isActive}
-                      onChange={() => toggleActive(r)}
-                    />
-                    <span className="text-xs">
-                      {r.isActive ? "Aktif" : "Pasif"}
-                    </span>
-                  </label>
-                </TD>
-                <TD className="text-xs text-neutral-500">
-                  {r.createdAt
-                    ? new Date(r.createdAt).toLocaleString("tr-TR")
-                    : "—"}
-                </TD>
-                <TD className="text-right">
-                  <div className="inline-flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onDetailClick(r)}
-                    >
-                      Detay
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => onDelete(r)}
-                    >
-                      Sil
-                    </Button>
-                  </div>
-                </TD>
-              </TR>
-            ))}
-          </tbody>
-        </Table>
-      </Card>
-
-      {/* --- DETAIL MODAL --- */}
+      {/* Detail Modal */}
       {showDetail && (
         <Modal onClose={() => setShowDetail(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-[850px] max-h-[90vh] flex flex-col overflow-hidden">
             <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
               <div className="font-semibold text-lg">
                 Script Detayı #{selectedId}
@@ -275,7 +245,7 @@ export default function ScriptListPage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 text-sm">
               {detailLoading ? (
                 <div>Yükleniyor…</div>
               ) : (
@@ -309,6 +279,7 @@ export default function ScriptListPage() {
                   <Field label="Meta JSON">
                     <Textarea
                       rows={6}
+                      className="font-mono"
                       value={form.metaJson ?? ""}
                       onChange={(e) =>
                         setForm({ ...form, metaJson: e.target.value })
@@ -332,7 +303,16 @@ export default function ScriptListPage() {
   );
 }
 
-// ------------------- HELPERS -------------------
+// --- Helpers ---
+function formatDate(v?: string | null) {
+  if (!v) return "—";
+  try {
+    return new Date(v).toLocaleString("tr-TR");
+  } catch {
+    return v;
+  }
+}
+
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [debounced, setDebounced] = useState(value);
   const t = useRef<number | null>(null);

@@ -15,7 +15,7 @@ import {
   Modal,
 } from "../components/ui-kit";
 import {
-  scriptsProfilesApi,
+  scriptGenerationProfilesApi,
   type ScriptGenerationProfileListDto,
   type ScriptGenerationProfileDetailDto,
 } from "../api/scriptProfiles";
@@ -25,8 +25,6 @@ import { topicProfilesApi } from "../api/topicProfiles";
 import toast from "react-hot-toast";
 import { useConfirm } from "../components/confirm";
 import SelectBox from "../components/SelectBox";
-import ButtonGroup from "../components/ButtonGroup";
-import { scriptGeneratorApi } from "../api/scriptGenerator";
 
 // ------------------- DEFAULT FORM -------------------
 const EMPTY_PROFILE: ScriptGenerationProfileDetailDto = {
@@ -38,11 +36,13 @@ const EMPTY_PROFILE: ScriptGenerationProfileDetailDto = {
   modelName: "",
   temperature: 0.8,
   language: "en",
-  topicIdsJson: "[]",
+  outputMode: "Script",
   configJson: "{}",
-  rawResponseJson: "{}",
   status: "Pending",
-  isActive: true,
+  productionType: "",
+  renderStyle: "",
+  isPublic: false,
+  allowRetry: true,
 };
 
 // ------------------- COMPONENT -------------------
@@ -57,9 +57,7 @@ export default function ScriptGenerationProfilesPage() {
   >([]);
 
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "passive"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(false);
 
   const [showDetail, setShowDetail] = useState(false);
@@ -75,7 +73,7 @@ export default function ScriptGenerationProfilesPage() {
   async function load() {
     setLoading(true);
     try {
-      const list = await scriptsProfilesApi.list();
+      const list = await scriptGenerationProfilesApi.list();
       setItems(list);
     } catch {
       toast.error("Script profilleri yüklenemedi");
@@ -98,7 +96,10 @@ export default function ScriptGenerationProfilesPage() {
         }))
       );
       setAiConnections(
-        a.map((x: any) => ({ id: x.id, name: x.name ?? `AI #${x.id}` }))
+        a.map((x: any) => ({
+          id: x.id,
+          name: x.name ?? `AI #${x.id}`,
+        }))
       );
       setTopicProfiles(
         t.map((x: any) => ({
@@ -118,8 +119,6 @@ export default function ScriptGenerationProfilesPage() {
 
   // ------------------- FILTER -------------------
   const filteredItems = items.filter((i) => {
-    if (statusFilter === "active" && !i.isActive) return false;
-    if (statusFilter === "passive" && i.isActive) return false;
     if (!debouncedQ) return true;
     return (
       i.profileName?.toLowerCase().includes(debouncedQ.toLowerCase()) ||
@@ -130,30 +129,15 @@ export default function ScriptGenerationProfilesPage() {
   });
 
   // ------------------- ROW ACTIONS -------------------
-  async function toggleActive(row: ScriptGenerationProfileListDto) {
-    try {
-      await scriptsProfilesApi.toggleActive(row.id, !row.isActive);
-      setItems((prev) =>
-        prev.map((x) => (x.id === row.id ? { ...x, isActive: !x.isActive } : x))
-      );
-      toast.success(
-        `Profil #${row.id} ${!row.isActive ? "aktif" : "pasif"} yapıldı`
-      );
-    } catch {
-      toast.error("İşlem başarısız");
-    }
-  }
-
   async function onDetailClick(row: ScriptGenerationProfileListDto) {
     setShowDetail(true);
     setSelectedId(row.id);
     setDetailLoading(true);
     try {
-      const dto = await scriptsProfilesApi.get(row.id);
+      const dto = await scriptGenerationProfilesApi.get(row.id);
       setForm({
         ...dto,
         configJson: formatJson(dto.configJson),
-        rawResponseJson: formatJson(dto.rawResponseJson),
       });
     } catch {
       toast.error("Detay yüklenemedi");
@@ -164,18 +148,11 @@ export default function ScriptGenerationProfilesPage() {
 
   async function onSave() {
     try {
-      if (form.id === 0)
-        await toast.promise(scriptsProfilesApi.create(form), {
-          loading: "Kaydediliyor…",
-          success: "Oluşturuldu",
-          error: "Kaydetme hatası",
-        });
-      else
-        await toast.promise(scriptsProfilesApi.update(form.id, form), {
-          loading: "Güncelleniyor…",
-          success: "Güncellendi",
-          error: "Kaydetme hatası",
-        });
+      await toast.promise(scriptGenerationProfilesApi.save(form), {
+        loading: "Kaydediliyor…",
+        success: "Kaydedildi",
+        error: "Kaydetme hatası",
+      });
       setShowDetail(false);
       await load();
     } catch {}
@@ -189,7 +166,7 @@ export default function ScriptGenerationProfilesPage() {
     });
     if (!ok) return;
     try {
-      await scriptsProfilesApi.delete(row.id);
+      await scriptGenerationProfilesApi.delete(row.id);
       toast.success("Silindi");
       await load();
     } catch {
@@ -197,46 +174,26 @@ export default function ScriptGenerationProfilesPage() {
     }
   }
 
-  async function onGenerate(row: ScriptGenerationProfileListDto) {
-    try {
-      await toast.promise(scriptGeneratorApi.generate(row.id), {
-        loading: "Script üretiliyor…",
-        success: "Üretim tamamlandı 🎬",
-        error: "Üretim başarısız",
-      });
-    } catch {
-      toast.error("Üretim sırasında hata oluştu");
-    }
-  }
-
   // ------------------- RENDER -------------------
   return (
     <Page>
-      <Toolbar className="grid grid-cols-[1.5fr_1fr_auto_auto] gap-2">
+      <Toolbar className="grid grid-cols-[1.5fr_auto_auto] gap-2">
         <Input
           placeholder="Ara… (profil / model / provider)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
 
-        <ButtonGroup
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { label: "Hepsi", value: "all" },
-            { label: "Aktif", value: "active" },
-            { label: "Pasif", value: "passive" },
-          ]}
-        />
-
         <Button onClick={load} disabled={loading}>
           {loading ? "Yükleniyor…" : "Yenile"}
         </Button>
+
         <Button
           variant="primary"
           onClick={() => {
             setForm(EMPTY_PROFILE);
             setShowDetail(true);
+            setSelectedId(null);
           }}
         >
           Yeni Profil
@@ -254,9 +211,6 @@ export default function ScriptGenerationProfilesPage() {
               <TH>AI Provider</TH>
               <TH>Topic Profile</TH>
               <TH>Durum</TH>
-              <TH>Aktif</TH>
-              <TH>Başlangıç</TH>
-              <TH>Bitiş</TH>
               <TH className="text-right">İşlemler</TH>
             </TR>
           </THead>
@@ -270,32 +224,8 @@ export default function ScriptGenerationProfilesPage() {
                 <TD>{r.aiProvider ?? "—"}</TD>
                 <TD>{r.topicGenerationProfileName ?? "—"}</TD>
                 <TD>{r.status ?? "—"}</TD>
-                <TD>
-                  <input
-                    type="checkbox"
-                    checked={r.isActive}
-                    onChange={() => toggleActive(r)}
-                  />
-                </TD>
-                <TD className="text-xs">
-                  {r.startedAt
-                    ? new Date(r.startedAt).toLocaleString("tr-TR")
-                    : "—"}
-                </TD>
-                <TD className="text-xs">
-                  {r.completedAt
-                    ? new Date(r.completedAt).toLocaleString("tr-TR")
-                    : "—"}
-                </TD>
                 <TD className="text-right">
                   <div className="inline-flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={() => onGenerate(r)}
-                    >
-                      Üret
-                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -397,7 +327,22 @@ export default function ScriptGenerationProfilesPage() {
                       }
                     />
                   </Field>
-                  <Field label="Language">
+                  <Field label="Temperature">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="1"
+                      value={form.temperature}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          temperature: parseFloat(e.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Dil">
                     <Input
                       value={form.language ?? ""}
                       onChange={(e) =>
@@ -407,22 +352,35 @@ export default function ScriptGenerationProfilesPage() {
                   </Field>
                   <Field label="Config JSON">
                     <Textarea
-                      rows={5}
+                      rows={6}
                       value={form.configJson ?? ""}
                       onChange={(e) =>
                         setForm({ ...form, configJson: e.target.value })
                       }
                     />
                   </Field>
-                  <Field label="Raw Response JSON">
-                    <Textarea
-                      rows={8}
-                      value={form.rawResponseJson ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, rawResponseJson: e.target.value })
-                      }
-                    />
-                  </Field>
+                  <div className="flex items-center gap-5 pt-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={form.isPublic}
+                        onChange={(e) =>
+                          setForm({ ...form, isPublic: e.target.checked })
+                        }
+                      />{" "}
+                      Public
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={form.allowRetry}
+                        onChange={(e) =>
+                          setForm({ ...form, allowRetry: e.target.checked })
+                        }
+                      />{" "}
+                      Allow Retry
+                    </label>
+                  </div>
                 </>
               )}
             </div>

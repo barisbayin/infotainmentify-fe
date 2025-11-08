@@ -4,13 +4,24 @@ import { http } from "./http";
    📦 TYPES
    =========================================================== */
 
+export interface ScriptGenerationResult {
+    totalRequested: number;
+    successCount: number;
+    failedCount: number;
+    generatedTopicIds: number[];
+    failedTopicIds: number[];
+    provider?: string | null;
+    model?: string | null;
+    temperature?: number;
+    language?: string | null;
+    productionType?: string | null;
+    renderStyle?: string | null;
+    message?: string | null;
+}
+
 export interface GenerateFromTopicsRequest {
     profileId: number;
     topicIds?: number[];
-}
-
-export interface GenerateResponse {
-    message: string;
 }
 
 /* ===========================================================
@@ -20,17 +31,21 @@ export interface GenerateResponse {
 export const scriptGeneratorApi = {
     // ---------------- PROFILE-BASED GENERATION ----------------
     generate(profileId: number) {
-        return http<GenerateResponse>(
-            `/api/scriptgeneration/generate?profileId=${profileId}`,
+        // ✅ controller route = POST /api/scriptgeneration/generate/{profileId}
+        return http<{ success: boolean; message: string; data: ScriptGenerationResult }>(
+            `/api/scriptgeneration/generate/${profileId}`,
             { method: "POST" }
         );
     },
 
-    // ---------------- TOPIC-LIST BASED GENERATION ----------------
+    // ---------------- TOPIC-LIST BASED GENERATION (future feature) ----------------
     generateFromTopics(payload: GenerateFromTopicsRequest) {
-        return http<GenerateResponse>(`/api/scriptgeneration/generate-from-topics`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-        });
+        return http<{ success: boolean; message: string; data?: ScriptGenerationResult }>(
+            `/api/scriptgeneration/generate-from-topics`,
+            {
+                method: "POST",
+                body: JSON.stringify(payload),
+            }
+        );
     },
 };

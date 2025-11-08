@@ -22,6 +22,7 @@ export interface TopicListDto {
     premiseTr?: string | null;
     renderStyle?: string | null;
     productionType?: string | null;
+    allowScriptGeneration?: boolean | null;
 }
 
 export interface TopicDetailDto {
@@ -48,6 +49,7 @@ export interface TopicDetailDto {
     scriptGeneratedAt?: string | null;
     priority: number;
     isActive: boolean;
+    allowScriptGeneration?: boolean | null;
 }
 
 /* ===========================================================
@@ -91,4 +93,11 @@ export const topicsApi = {
             { method: "POST" }
         );
     },
+
+    setAllowScript(id: number, allow: boolean) {
+        return http(`/api/topics/${id}/allow-script`, {
+            method: "PUT",
+            body: JSON.stringify(allow),
+        });
+    }
 };

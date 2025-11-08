@@ -35,7 +35,7 @@ import type { JSX } from "react";
 // Job türleri
 const JOB_TYPES = [
   { value: "TopicGeneration", label: "Topic Üretimi" },
-  // { value: "StoryGeneration", label: "Story Üretimi" },
+  { value: "StoryGeneration", label: "Story Üretimi" },
   // { value: "YouTubeUpload", label: "YouTube Yükleme" },
   // { value: "ThumbnailRender", label: "Küçük Görsel Render" },
 ];

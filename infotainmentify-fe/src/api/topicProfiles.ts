@@ -5,48 +5,63 @@ import { http } from "./http";
 // -------------------------
 export interface TopicGenerationProfileListDto {
     id: number;
-    profileName?: string;
+    profileName: string;
     modelName: string;
     promptName?: string;
     aiProvider?: string;
+    productionType?: string;
+    renderStyle?: string;
+    language: string;
     requestedCount: number;
-    status: string;
-    startedAt: string;
-    completedAt?: string | null;
+    autoGenerateScript: boolean;
+    isPublic: boolean;
+    allowRetry: boolean;
 }
 
 export interface TopicGenerationProfileDetailDto {
     id: number;
-    profileName?: string;
+    profileName: string;
     promptId: number;
     aiConnectionId: number;
     modelName: string;
+
+    productionType?: string;
+    renderStyle?: string;
+    language: string;
+    temperature: number;
     requestedCount: number;
-    rawResponseJson?: string | null;
-    startedAt?: string | null;
-    completedAt?: string | null;
-    status?: string | null;
-    promptName?: string | null;
-    aiProvider?: string | null;
+    maxTokens?: number | null;
+    tagsJson?: string | null;
+    outputMode: string;
+    autoGenerateScript: boolean;
+    isPublic: boolean;
+    allowRetry: boolean;
+
+    // Görüntüleme alanları (readonly)
+    promptName?: string;
+    aiProvider?: string;
 }
 
 // -------------------------
 // Ana API Nesnesi
 // -------------------------
 export const topicProfilesApi = {
-    // Listeleme
-    list() {
-        return http<TopicGenerationProfileListDto[]>("/api/topicgenerationprofiles");
+    // 🔹 Listeleme (opsiyonel arama parametresi)
+    list(q?: string) {
+        const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+        return http<TopicGenerationProfileListDto[]>(
+            `/api/topicgenerationprofiles${qs}`
+        );
     },
 
-    // Detay
+    // 🔹 Detay
     get(id: number) {
         return http<TopicGenerationProfileDetailDto>(
             `/api/topicgenerationprofiles/${id}`
         );
     },
 
-    // Yeni oluştur
+    // 🔹 Yeni oluştur
     create(dto: Omit<TopicGenerationProfileDetailDto, "id">) {
         return http<{ id: number }>("/api/topicgenerationprofiles", {
             method: "POST",
@@ -54,15 +69,15 @@ export const topicProfilesApi = {
         });
     },
 
-    // Güncelle
+    // 🔹 Güncelle
     update(id: number, dto: Omit<TopicGenerationProfileDetailDto, "id">) {
-        return http<void>(`/api/topicgenerationprofiles/${id}`, {
+        return http<{ id: number }>(`/api/topicgenerationprofiles/${id}`, {
             method: "PUT",
             body: JSON.stringify(dto),
         });
     },
 
-    // Sil
+    // 🔹 Sil
     delete(id: number) {
         return http<void>(`/api/topicgenerationprofiles/${id}`, {
             method: "DELETE",

@@ -19,59 +19,68 @@ import {
 import toast from "react-hot-toast";
 import { useConfirm } from "../components/confirm";
 import SelectBox from "../components/SelectBox";
+import ButtonGroup from "../components/ButtonGroup";
 import {
   topicProfilesApi,
   type TopicGenerationProfileDetailDto,
   type TopicGenerationProfileListDto,
 } from "../api/topicProfiles";
-import { type Prompt } from "../api/types";
 import { promptsApi } from "../api/prompts";
-import {
-  aiIntegrationsApi,
-  type UserAiConnectionDetailDto,
-} from "../api/aiIntegrations";
+import { aiIntegrationsApi } from "../api/aiIntegrations";
+import Switch from "../components/Switch";
 
-const STATUSES = [
-  { value: "Pending", label: "Beklemede" },
-  { value: "Success", label: "Başarılı" },
-  { value: "Failed", label: "Hatalı" },
-];
-
+// ------------------- Empty Form -------------------
 const EMPTY: Omit<TopicGenerationProfileDetailDto, "id"> = {
+  profileName: "",
   promptId: 0,
   aiConnectionId: 0,
-  profileName: "",
   modelName: "",
-  requestedCount: 1,
-  rawResponseJson: "{}",
-  startedAt: undefined,
-  completedAt: undefined,
-  status: "Pending",
+  productionType: "",
+  renderStyle: "",
+  language: "en",
+  temperature: 0.7,
+  requestedCount: 30,
+  maxTokens: undefined,
+  tagsJson: "",
+  outputMode: "Topic",
+  autoGenerateScript: false,
+  isPublic: false,
+  allowRetry: true,
   promptName: "",
   aiProvider: "",
 };
 
 export default function TopicGenerationProfilesPage() {
   const [items, setItems] = useState<TopicGenerationProfileListDto[]>([]);
+  const [filtered, setFiltered] = useState<TopicGenerationProfileListDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [form, setForm] =
     useState<Omit<TopicGenerationProfileDetailDto, "id">>(EMPTY);
 
-  const [prompts, setPrompts] = useState<Prompt[]>([]);
-  const [connections, setConnections] = useState<UserAiConnectionDetailDto[]>(
-    []
-  );
+  const [prompts, setPrompts] = useState<{ id: number; name: string }[]>([]);
+  const [connections, setConnections] = useState<
+    { id: number; name: string; provider: string }[]
+  >([]);
+
+  // 🔍 Toolbar filtreleri
+  const [q, setQ] = useState("");
+  const [promptFilter, setPromptFilter] = useState<string>("");
+  const [connFilter, setConnFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "passive"
+  >("all");
 
   const confirm = useConfirm();
 
-  // Liste yükle
+  // -------------------- LOAD DATA --------------------
   async function load() {
     setLoading(true);
     try {
       const data = await topicProfilesApi.list();
       setItems(data);
+      setFiltered(data);
     } catch {
       toast.error("Liste yüklenemedi");
     } finally {
@@ -79,15 +88,16 @@ export default function TopicGenerationProfilesPage() {
     }
   }
 
-  // Prompts ve AI bağlantıları yükle
   async function loadSources() {
     try {
       const [p, c] = await Promise.all([
         promptsApi.list(),
         aiIntegrationsApi.list(),
       ]);
-      setPrompts(p);
-      setConnections(c);
+      setPrompts(p.map((x) => ({ id: x.id, name: x.name })));
+      setConnections(
+        c.map((x) => ({ id: x.id, name: x.name, provider: x.provider }))
+      );
     } catch {
       toast.error("Kaynak listeleri yüklenemedi");
     }
@@ -98,24 +108,35 @@ export default function TopicGenerationProfilesPage() {
     loadSources();
   }, []);
 
+  // -------------------- FILTRELEME --------------------
+  useEffect(() => {
+    const filteredData = items.filter((x) => {
+      const qMatch =
+        !q ||
+        x.profileName.toLowerCase().includes(q.toLowerCase()) ||
+        x.modelName.toLowerCase().includes(q.toLowerCase()) ||
+        (x.promptName ?? "").toLowerCase().includes(q.toLowerCase());
+      const promptMatch =
+        !promptFilter || String(x.promptName ?? "") === promptFilter;
+      const connMatch =
+        !connFilter || String(x.aiProvider ?? "") === connFilter;
+      const statusMatch =
+        statusFilter === "all" ||
+        (statusFilter === "active" && x.isPublic) ||
+        (statusFilter === "passive" && !x.isPublic);
+
+      return qMatch && promptMatch && connMatch && statusMatch;
+    });
+    setFiltered(filteredData);
+  }, [q, promptFilter, connFilter, statusFilter, items]);
+
+  // -------------------- ROW CLICK --------------------
   async function onRowClick(item: TopicGenerationProfileListDto) {
     setSelectedId(item.id);
     setDetailLoading(true);
     try {
       const dto = await topicProfilesApi.get(item.id);
-      setForm({
-        profileName: dto.profileName,
-        promptId: dto.promptId,
-        aiConnectionId: dto.aiConnectionId,
-        modelName: dto.modelName,
-        requestedCount: dto.requestedCount,
-        rawResponseJson: dto.rawResponseJson ?? "{}",
-        startedAt: dto.startedAt,
-        completedAt: dto.completedAt,
-        status: dto.status ?? "Pending",
-        promptName: dto.promptName,
-        aiProvider: dto.aiProvider,
-      });
+      setForm({ ...dto });
     } catch {
       toast.error("Detay yüklenemedi");
     } finally {
@@ -128,20 +149,21 @@ export default function TopicGenerationProfilesPage() {
     setForm(EMPTY);
   }
 
+  // -------------------- SAVE / DELETE --------------------
   async function onSave() {
     if (
       !form.promptId ||
       !form.aiConnectionId ||
       !form.modelName.trim() ||
-      !form.profileName?.trim()
+      !form.profileName.trim()
     ) {
-      toast.error("Prompt, bağlantı, model adı ve profil adı zorunludur");
+      toast.error("Prompt, bağlantı, model ve profil adı zorunludur");
       return;
     }
 
     const isUpdate = selectedId != null;
     const opPromise: Promise<void> = isUpdate
-      ? topicProfilesApi.update(selectedId!, form)
+      ? topicProfilesApi.update(selectedId!, form).then(() => undefined)
       : topicProfilesApi.create(form).then(() => undefined);
 
     try {
@@ -180,20 +202,50 @@ export default function TopicGenerationProfilesPage() {
     }
   }
 
+  // -------------------- RENDER --------------------
   return (
     <Page>
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* SOL - Liste */}
         <section className="col-span-12 xl:col-span-7 flex flex-col min-h-0">
-          <Toolbar>
+          {/* 🔹 Toolbar */}
+          <Toolbar className="flex gap-2">
+            <Input
+              placeholder="Ara…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+
+            <SelectBox
+              value={promptFilter}
+              onChange={setPromptFilter}
+              options={[
+                { value: "", label: "Tüm Promptlar" },
+                ...prompts.map((p) => ({ value: p.name, label: p.name })),
+              ]}
+            />
+
+            <SelectBox
+              value={connFilter}
+              onChange={setConnFilter}
+              options={[
+                { value: "", label: "Tüm Bağlantılar" },
+                ...connections.map((c) => ({
+                  value: c.provider,
+                  label: `${c.name} (${c.provider})`,
+                })),
+              ]}
+            />
+
             <Button onClick={load} disabled={loading}>
-              {loading ? "Yenileniyor…" : "Yenile"}
+              {loading ? "Yükleniyor…" : "Yenile"}
             </Button>
             <Button variant="primary" onClick={resetForm}>
               Yeni
             </Button>
           </Toolbar>
 
+          {/* 🔹 Liste Tablosu */}
           <Card className="mt-3 flex-1 min-h-0 overflow-auto">
             <Table>
               <THead>
@@ -203,12 +255,13 @@ export default function TopicGenerationProfilesPage() {
                   <TH>Prompt</TH>
                   <TH>Bağlantı</TH>
                   <TH>Model</TH>
-                  <TH>İstek</TH>
+                  <TH>Dil</TH>
+                  <TH>Adet</TH>
                   <TH>Durum</TH>
                 </TR>
               </THead>
               <tbody>
-                {items.map((x) => (
+                {filtered.map((x) => (
                   <TR
                     key={x.id}
                     onClick={() => onRowClick(x)}
@@ -219,11 +272,12 @@ export default function TopicGenerationProfilesPage() {
                   >
                     <TD>#{x.id}</TD>
                     <TD>{x.profileName}</TD>
-                    <TD>{x.promptName}</TD>
-                    <TD>{x.aiProvider}</TD>
+                    <TD>{x.promptName ?? "—"}</TD>
+                    <TD>{x.aiProvider ?? "—"}</TD>
                     <TD>{x.modelName}</TD>
+                    <TD>{x.language}</TD>
                     <TD>{x.requestedCount}</TD>
-                    <TD>{x.status}</TD>
+                    <TD>{x.isPublic ? "Aktif" : "Pasif"}</TD>
                   </TR>
                 ))}
               </tbody>
@@ -236,17 +290,15 @@ export default function TopicGenerationProfilesPage() {
           <Card className="flex-1 flex flex-col">
             <CardHeader>
               <div className="text-lg font-semibold">
-                {selectedId
-                  ? `Düzenle #${selectedId}`
-                  : "Yeni Topic Üretim Profili"}
+                {selectedId ? `Düzenle #${selectedId}` : "Yeni Üretim Profili"}
               </div>
             </CardHeader>
 
-            <CardBody className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <CardBody className="flex flex-col flex-1 min-h-0 overflow-hidden space-y-3">
               {detailLoading ? (
                 <div className="p-3 text-sm text-neutral-500">Yükleniyor…</div>
               ) : (
-                <div className="flex flex-col gap-4 flex-1">
+                <>
                   <Field label="Profil Adı">
                     <Input
                       value={form.profileName}
@@ -255,76 +307,157 @@ export default function TopicGenerationProfilesPage() {
                       }
                     />
                   </Field>
-                  <Field label="Prompt">
-                    <SelectBox
-                      value={form.promptId.toString()}
-                      onChange={(v) =>
-                        setForm({ ...form, promptId: Number(v) })
-                      }
-                      options={prompts.map((p) => ({
-                        value: p.id.toString(),
-                        label: p.name,
-                      }))}
-                    />
-                  </Field>
 
-                  <Field label="AI Bağlantısı">
-                    <SelectBox
-                      value={form.aiConnectionId.toString()}
-                      onChange={(v) =>
-                        setForm({ ...form, aiConnectionId: Number(v) })
-                      }
-                      options={connections.map((c) => ({
-                        value: c.id.toString(),
-                        label: `${c.name} (${c.provider})`,
-                      }))}
-                    />
-                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Prompt">
+                      <SelectBox
+                        value={form.promptId?.toString()}
+                        onChange={(v) =>
+                          setForm({ ...form, promptId: Number(v) })
+                        }
+                        options={prompts.map((p) => ({
+                          value: p.id.toString(),
+                          label: p.name,
+                        }))}
+                      />
+                    </Field>
 
-                  <Field label="Model Adı">
-                    <Input
-                      value={form.modelName}
-                      onChange={(e) =>
-                        setForm({ ...form, modelName: e.target.value })
-                      }
-                    />
-                  </Field>
+                    <Field label="AI Bağlantısı">
+                      <SelectBox
+                        value={form.aiConnectionId?.toString()}
+                        onChange={(v) =>
+                          setForm({ ...form, aiConnectionId: Number(v) })
+                        }
+                        options={connections.map((c) => ({
+                          value: c.id.toString(),
+                          label: `${c.name} (${c.provider})`,
+                        }))}
+                      />
+                    </Field>
+                  </div>
 
-                  <Field label="İstek Sayısı">
-                    <Input
-                      type="number"
-                      value={form.requestedCount}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          requestedCount: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Model Adı">
+                      <Input
+                        value={form.modelName}
+                        onChange={(e) =>
+                          setForm({ ...form, modelName: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Dil">
+                      <Input
+                        value={form.language}
+                        onChange={(e) =>
+                          setForm({ ...form, language: e.target.value })
+                        }
+                      />
+                    </Field>
+                  </div>
 
-                  <Field label="Durum">
-                    <SelectBox
-                      value={form.status ?? "Pending"}
-                      onChange={(v) => setForm({ ...form, status: v })}
-                      options={STATUSES}
-                    />
-                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Sıcaklık (Temperature)">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={form.temperature}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            temperature: parseFloat(e.target.value),
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Maks. Token">
+                      <Input
+                        type="number"
+                        value={form.maxTokens ?? ""}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            maxTokens: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                      />
+                    </Field>
+                  </div>
 
-                  <Field
-                    label="Ham Yanıt (JSON)"
-                    className="flex-1 flex flex-col"
-                  >
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Üretim Türü">
+                      <Input
+                        value={form.productionType ?? ""}
+                        onChange={(e) =>
+                          setForm({ ...form, productionType: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Render Stili">
+                      <Input
+                        value={form.renderStyle ?? ""}
+                        onChange={(e) =>
+                          setForm({ ...form, renderStyle: e.target.value })
+                        }
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Etiketler (JSON)">
                     <Textarea
-                      className="flex-1 font-mono text-sm border border-neutral-300 rounded-xl bg-neutral-50 p-2 resize-none"
-                      value={form.rawResponseJson ?? "{}"}
+                      className="font-mono text-sm"
+                      value={form.tagsJson ?? ""}
                       onChange={(e) =>
-                        setForm({ ...form, rawResponseJson: e.target.value })
+                        setForm({ ...form, tagsJson: e.target.value })
                       }
-                      placeholder='{ "topics": [...] }'
+                      placeholder='["science","viral"]'
                     />
                   </Field>
-                </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Çıktı Modu">
+                      <Input
+                        value={form.outputMode}
+                        onChange={(e) =>
+                          setForm({ ...form, outputMode: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="İstek Sayısı">
+                      <Input
+                        type="number"
+                        value={form.requestedCount}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            requestedCount: Number(e.target.value),
+                          })
+                        }
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 pt-2">
+                    <Switch
+                      checked={form.autoGenerateScript}
+                      onChange={(v) =>
+                        setForm({ ...form, autoGenerateScript: v })
+                      }
+                      label="Otomatik Script"
+                    />
+                    <Switch
+                      checked={form.isPublic}
+                      onChange={(v) => setForm({ ...form, isPublic: v })}
+                      label="Herkese Açık"
+                    />
+                    <Switch
+                      checked={form.allowRetry}
+                      onChange={(v) => setForm({ ...form, allowRetry: v })}
+                      label="Tekrar Deneme"
+                    />
+                  </div>
+                </>
               )}
             </CardBody>
 

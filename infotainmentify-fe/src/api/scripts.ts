@@ -11,6 +11,10 @@ export interface ScriptListDto {
     title: string;
     summary?: string | null;
     language: string;
+    renderStyle?: string | null;
+    productionType?: string | null;
+    modelName?: string | null;
+    promptName?: string | null;
     createdAt: string;
     updatedAt?: string | null;
     isActive: boolean;
@@ -24,7 +28,12 @@ export interface ScriptDetailDto {
     summary?: string | null;
     content: string;
     language: string;
+    renderStyle?: string | null;
+    productionType?: string | null;
     metaJson?: string | null;
+    scriptJson?: string | null;
+    promptName?: string | null;
+    modelName?: string | null;
     createdAt: string;
     updatedAt?: string | null;
     isActive: boolean;
@@ -46,9 +55,8 @@ export const scriptsApi = {
 
     // ---------------- CREATE/UPDATE (UPSERT) ----------------
     save(dto: ScriptDetailDto) {
-        // id varsa update, yoksa create
-        const method = dto.id ? "PUT" : "POST";
-        const url = dto.id ? `/api/scripts/${dto.id}` : `/api/scripts`;
+        const method = dto.id && dto.id > 0 ? "PUT" : "POST";
+        const url = dto.id && dto.id > 0 ? `/api/scripts/${dto.id}` : `/api/scripts`;
         return http<ScriptDetailDto>(url, {
             method,
             body: JSON.stringify(dto),

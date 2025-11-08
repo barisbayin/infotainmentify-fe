@@ -114,12 +114,6 @@ export default function Sidebar({
           {openGroups.icerik && (
             <SidebarSubList collapsed={collapsed}>
               <SidebarLink
-                to="/prompts"
-                icon={FileText}
-                collapsed={collapsed}
-                label="Promptlar"
-              />
-              <SidebarLink
                 to="/topics"
                 icon={ListChecks}
                 collapsed={collapsed}
@@ -130,6 +124,12 @@ export default function Sidebar({
                 icon={BookIcon}
                 collapsed={collapsed}
                 label="Senaryolar"
+              />
+              <SidebarLink
+                to="/prompts"
+                icon={FileText}
+                collapsed={collapsed}
+                label="Promptlar"
               />
               <SidebarLink
                 to="/topic-generation-profiles"

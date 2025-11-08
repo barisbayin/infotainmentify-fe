@@ -1,4 +1,4 @@
-import { http } from "./http";
+import { http, qs } from "./http";
 
 /* ===========================================================
    📦 TYPES
@@ -6,14 +6,15 @@ import { http } from "./http";
 
 export interface ScriptGenerationProfileListDto {
     id: number;
-    profileName?: string | null;
+    profileName: string;
     modelName: string;
     temperature: number;
     language?: string | null;
     status?: string | null;
-    isActive: boolean;
-    startedAt?: string | null;
-    completedAt?: string | null;
+    productionType?: string | null;
+    renderStyle?: string | null;
+    isPublic: boolean;
+    allowRetry: boolean;
     promptName?: string | null;
     aiConnectionName?: string | null;
     aiProvider?: string | null;
@@ -22,20 +23,22 @@ export interface ScriptGenerationProfileListDto {
 
 export interface ScriptGenerationProfileDetailDto {
     id: number;
-    profileName?: string | null;
+    profileName: string;
     promptId: number;
     aiConnectionId: number;
     topicGenerationProfileId?: number | null;
     modelName: string;
     temperature: number;
     language?: string | null;
-    topicIdsJson?: string | null;
+    outputMode?: string | null;
     configJson?: string | null;
-    rawResponseJson?: string | null;
     status?: string | null;
-    isActive: boolean;
-    startedAt?: string | null;
-    completedAt?: string | null;
+    productionType?: string | null;
+    renderStyle?: string | null;
+    isPublic: boolean;
+    allowRetry: boolean;
+
+    // only for display
     promptName?: string | null;
     aiConnectionName?: string | null;
     aiProvider?: string | null;
@@ -46,44 +49,34 @@ export interface ScriptGenerationProfileDetailDto {
    🚀 API FUNCTIONS
    =========================================================== */
 
-export const scriptsProfilesApi = {
+export const scriptGenerationProfilesApi = {
     // ---------------- LIST ----------------
-    list() {
-        return http<ScriptGenerationProfileListDto[]>("/api/scriptgenerationprofiles");
+    list(status?: string | null) {
+        return http<ScriptGenerationProfileListDto[]>(
+            `/api/scriptgenerationprofiles${qs({ status })}`
+        );
     },
 
     // ---------------- GET ----------------
     get(id: number) {
-        return http<ScriptGenerationProfileDetailDto>(`/api/scriptgenerationprofiles/${id}`);
+        return http<ScriptGenerationProfileDetailDto>(
+            `/api/scriptgenerationprofiles/${id}`
+        );
     },
 
-    // ---------------- CREATE ----------------
-    create(dto: Omit<ScriptGenerationProfileDetailDto, "id">) {
-        return http<{ id: number }>("/api/scriptgenerationprofiles", {
+    // ---------------- SAVE (CREATE OR UPDATE) ----------------
+    save(dto: ScriptGenerationProfileDetailDto) {
+        return http<{ id: number }>(`/api/scriptgenerationprofiles/save`, {
             method: "POST",
-            body: JSON.stringify(dto),
-        });
-    },
-
-    // ---------------- UPDATE ----------------
-    update(id: number, dto: Omit<ScriptGenerationProfileDetailDto, "id">) {
-        return http<void>(`/api/scriptgenerationprofiles/${id}`, {
-            method: "PUT",
             body: JSON.stringify(dto),
         });
     },
 
     // ---------------- DELETE ----------------
     delete(id: number) {
-        return http<void>(`/api/scriptgenerationprofiles/${id}`, {
-            method: "DELETE",
-        });
-    },
-
-    // ---------------- TOGGLE ACTIVE ----------------
-    toggleActive(id: number, isActive: boolean) {
-        return http<void>(`/api/scriptgenerationprofiles/${id}/active/${isActive}`, {
-            method: "PUT",
-        });
+        return http<{ success: boolean }>(
+            `/api/scriptgenerationprofiles/${id}`,
+            { method: "DELETE" }
+        );
     },
 };
