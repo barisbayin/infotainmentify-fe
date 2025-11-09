@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import { jobExecutionsApi } from "../api/jobExecutions";
 import { jobsApi } from "../api/jobs";
 import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { getSignalRConnection } from "../lib/signalr"; // ✅ eklendi
 
 /* ---------- Tipler ---------- */
 interface JobExecutionListDto {
@@ -116,6 +117,31 @@ export default function JobExecutionsPage() {
   useEffect(() => {
     loadJobs();
   }, []);
+
+  /* ✅ SignalR Event Listener */
+  useEffect(() => {
+    const conn = getSignalRConnection();
+    if (!conn) return;
+
+    const onJobCompleted = (data: any) => {
+      toast.success(
+        data.success
+          ? `✅ Job #${data.jobId} tamamlandı!`
+          : `❌ Job #${data.jobId} hata verdi: ${data.message ?? ""}`
+      );
+
+      // Eğer filtre aktif değilse veya o job gösteriliyorsa tabloyu yenile
+      if (!jobId || String(data.jobId) === jobId) {
+        loadExecutions();
+      }
+    };
+
+    conn.on("jobCompleted", onJobCompleted);
+
+    return () => {
+      conn.off("jobCompleted", onJobCompleted);
+    };
+  }, [jobId]); // ✅ jobId değişince handler güncellenir
 
   useEffect(() => {
     loadExecutions();

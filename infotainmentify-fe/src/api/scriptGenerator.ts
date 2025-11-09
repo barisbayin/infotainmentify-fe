@@ -48,4 +48,22 @@ export const scriptGeneratorApi = {
             }
         );
     },
+
+    generateAsync(profileId: number) {
+        return http<{ success: boolean; message: string }>(
+            `/api/scriptgeneration/generate-async?profileId=${profileId}`,
+            { method: "POST" }
+        );
+    },
+
+    // ✅ Seçilen topic'ler için profile göre script üretimi başlatır
+    generateFromTopicsAsync(req: GenerateFromTopicsRequest) {
+        return http<{ success: boolean; message: string }>(
+            `/api/scriptgeneration/generate-from-topics-async`,
+            {
+                method: "POST",
+                body: JSON.stringify(req),
+            }
+        );
+    },
 };

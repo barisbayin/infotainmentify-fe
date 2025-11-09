@@ -15,7 +15,8 @@ export function qs(params: Record<string, any>) {
 function isAbsoluteUrl(url: string) {
     return /^https?:\/\//i.test(url);
 }
-function getAuthToken() {
+
+export function getAuthToken() {
     return localStorage.getItem("auth.token");
 }
 

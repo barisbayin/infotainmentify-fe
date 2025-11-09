@@ -1,8 +1,8 @@
-// src/components/Topbar.tsx
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChangePasswordModal from "../components/ChangePasswordModal";
-import { useAuth } from "../context/AuthProvider"; // senin dosya yoluna göre değiştir
+import { useAuth } from "../context/AuthProvider";
+import SignalRStatusBadge from "../components/SignalRStatusBadge";
 
 type Props = { onOpenMobile: () => void };
 
@@ -11,7 +11,7 @@ export default function Topbar({ onOpenMobile }: Props) {
   const [pwdOpen, setPwdOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
-  const { logout } = useAuth(); // AuthContext'ten alıyoruz
+  const { logout } = useAuth();
 
   // dışarı tıklayınca menü kapanır
   useEffect(() => {
@@ -24,8 +24,8 @@ export default function Topbar({ onOpenMobile }: Props) {
   }, [menuOpen]);
 
   const handleLogout = () => {
-    logout(); // token ve user temizlenir
-    navigate("/login"); // login sayfasına yönlendir
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -37,25 +37,30 @@ export default function Topbar({ onOpenMobile }: Props) {
             className="lg:hidden px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-100"
             onClick={onOpenMobile}
           >
-            Menu
+            ☰
           </button>
           <div className="text-sm text-neutral-500">Overview</div>
         </div>
 
         {/* Sağ taraf */}
         <div className="flex items-center gap-3">
+          {/* 🔌 SignalR Durumu */}
+          <SignalRStatusBadge />
+
+          {/* Arama kutusu */}
           <input
             className="hidden md:block px-3 py-2 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-400"
             placeholder="Ara…"
           />
 
+          {/* Logo */}
           <img
             src="/logo.png"
             alt="Infotainmentify"
             className="h-7 w-7 rounded-lg object-contain"
           />
 
-          {/* User menu */}
+          {/* Kullanıcı menüsü */}
           <div className="relative" ref={menuRef}>
             <button
               className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 hover:bg-neutral-100"

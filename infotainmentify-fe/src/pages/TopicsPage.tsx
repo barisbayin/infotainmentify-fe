@@ -27,6 +27,8 @@ import { useConfirm } from "../components/confirm";
 import SelectBox from "../components/SelectBox";
 import Tooltip from "../components/Tooltip";
 import Switch from "../components/Switch";
+import { initSignalR, stopSignalR } from "../lib/signalr";
+import SignalRStatusBadge from "../components/SignalRStatusBadge";
 
 /* ===========================================================
    🧩 DEFAULT TOPIC
@@ -139,6 +141,36 @@ export default function TopicsPage() {
     loadPrompts();
   }, [debouncedQ]);
 
+  /* ===========================================================
+     🔔 REAL-TIME SCRIPT GENERATION (SignalR)
+     =========================================================== */
+  // useEffect(() => {
+  //   let mounted = true;
+
+  //   (async () => {
+  //     await initSignalR({
+  //       onJobProgress: (data) => {
+  //         if (!mounted) return;
+  //         toast.loading(`${data.status ?? "İşlem"} (%${data.progress})`, {
+  //           id: `job-${data.jobId}`,
+  //         });
+  //       },
+  //       onJobCompleted: (data) => {
+  //         if (!mounted) return;
+  //         toast.dismiss(`job-${data.jobId}`);
+  //         if (data.success)
+  //           toast.success(data.message || "✅ Script üretimi tamamlandı!");
+  //         else toast.error(data.message || "❌ Üretim sırasında hata oluştu");
+  //         load();
+  //       },
+  //     });
+  //   })();
+
+  //   return () => {
+  //     mounted = false;
+  //     stopSignalR();
+  //   };
+  // }, []);
   /* ===========================================================
      🔍 FILTER
      =========================================================== */
@@ -260,16 +292,24 @@ export default function TopicsPage() {
 
     setGenLoading(true);
     try {
-      const res = await scriptGeneratorApi.generateFromTopics({
+      const res = await scriptGeneratorApi.generateFromTopicsAsync({
         profileId: Number(selectedProfile),
         topicIds: selectedTopicIds,
       });
 
-      toast.success(res.message ?? "Üretim tamamlandı");
+      if (res.success) {
+        toast.success(
+          res.message || "Üretim başlatıldı. İlerlemeyi takip edebilirsiniz."
+        );
+      } else {
+        toast.error(res.message || "İşlem başlatılamadı.");
+      }
+
+      // ✅ Popup’ı kapat, seçimleri sıfırla
       setShowGenerate(false);
       setSelectedTopicIds([]);
-      await load();
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Üretim sırasında hata oluştu");
     } finally {
       setGenLoading(false);
@@ -306,7 +346,6 @@ export default function TopicsPage() {
               onChange={(e) => setQ(e.target.value)}
               className="h-[38px]"
             />
-
             <Button
               variant="primary"
               disabled={selectedTopicIds.length === 0}
@@ -314,7 +353,6 @@ export default function TopicsPage() {
             >
               Seçilenleri Üret ({selectedTopicIds.length})
             </Button>
-
             <Button onClick={load} disabled={loading} className="h-[38px]">
               {loading ? "Yükleniyor…" : "Yenile"}
             </Button>

@@ -27,6 +27,7 @@ import { useConfirm } from "../components/confirm";
 import { http } from "../api/http";
 import { Check, X, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
 import type { JSX } from "react";
+import { getSignalRConnection } from "../lib/signalr"; // ✅ eklendi
 
 /* ---------------------------------------
    🔧 Enum ve UI tanımları
@@ -35,7 +36,7 @@ import type { JSX } from "react";
 // Job türleri
 const JOB_TYPES = [
   { value: "TopicGeneration", label: "Topic Üretimi" },
-  { value: "StoryGeneration", label: "Story Üretimi" },
+  { value: "ScriptGeneration", label: "Story Üretimi" },
   // { value: "YouTubeUpload", label: "YouTube Yükleme" },
   // { value: "ThumbnailRender", label: "Küçük Görsel Render" },
 ];
@@ -43,7 +44,7 @@ const JOB_TYPES = [
 // JobType -> ProfileType eşleme
 const PROFILE_TYPE_MAP: Record<string, string> = {
   TopicGeneration: "TopicGenerationProfile",
-  StoryGeneration: "StoryGenerationProfile",
+  ScriptGeneration: "ScriptGenerationProfile", // ✅ eklendi
   YouTubeUpload: "YouTubeUploadProfile",
   ThumbnailRender: "ThumbnailRenderProfile",
 };
@@ -110,6 +111,35 @@ export default function JobSettingsPage() {
     return () => clearInterval(intv);
   }, []);
 
+  /* ✅ SignalR jobCompleted event handler */
+  useEffect(() => {
+    const conn = getSignalRConnection();
+    if (!conn) return;
+
+    const onJobCompleted = (data: any) => {
+      toast.dismiss(`job-${data.jobId}`);
+
+      if (data.success) {
+        toast.success(
+          `✅ Job #${data.jobId} tamamlandı: ${data.message || "Başarılı"}`
+        );
+      } else {
+        toast.error(
+          `❌ Job #${data.jobId} hata verdi: ${data.message || "Hata oluştu"}`
+        );
+      }
+
+      // Job listesi otomatik yenilensin
+      load();
+    };
+
+    conn.on("jobCompleted", onJobCompleted);
+
+    return () => {
+      conn.off("jobCompleted", onJobCompleted);
+    };
+  }, []); // sadece mount/unmount’ta eklensin
+
   /* ---------------------------------------
      ⚙️ Profil listesi
   ----------------------------------------*/
@@ -122,7 +152,7 @@ export default function JobSettingsPage() {
     const cleanedType = profileType.split(",")[0].split(".").pop()!;
     const endpointMap: Record<string, string> = {
       TopicGenerationProfile: "topicgenerationprofiles",
-      StoryGenerationProfile: "storygenerationprofiles",
+      ScriptGenerationProfile: "scriptgenerationprofiles",
       YouTubeUploadProfile: "youtubeuploadprofiles",
       ThumbnailRenderProfile: "thumbnailrenderprofiles",
     };
