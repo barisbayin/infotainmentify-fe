@@ -24,6 +24,7 @@ import { useConfirm } from "../components/confirm";
 import Switch from "../components/Switch";
 import Tooltip from "../components/Tooltip";
 import ButtonGroup from "../components/ButtonGroup";
+import { assetGeneratorApi } from "../api/assetGenerator";
 
 const EMPTY_SCRIPT: ScriptDetailDto = {
   id: 0,
@@ -124,6 +125,18 @@ export default function ScriptsPage() {
     }
   }
 
+  async function handleGenerateAll(scriptId: number) {
+    try {
+      toast.loading("Üretim başlatılıyor...");
+      await assetGeneratorApi.generateFull(scriptId);
+      toast.success("🎬 Tüm üretim işlemi başlatıldı!");
+    } catch {
+      toast.error("Üretim başlatılamadı!");
+    } finally {
+      toast.dismiss();
+    }
+  }
+
   // ---------------- FILTER ----------------
   const filtered = items.filter((i) => {
     if (statusFilter === "active" && !i.isActive) return false;
@@ -205,6 +218,13 @@ export default function ScriptsPage() {
                     </TD>
                     <TD className="text-right">
                       <div className="inline-flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => handleGenerateAll(r.id)}
+                        >
+                          🎬 Üret
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"

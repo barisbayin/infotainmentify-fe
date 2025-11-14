@@ -11,6 +11,9 @@ import JobSettingsPage from "./pages/JobSettingsPage";
 import JobExecutionsPage from "./pages/JobExecutionsPage";
 import ScriptListPage from "./pages/ScriptListPage";
 import ScriptGenerationProfilesPage from "./pages/ScriptGenerationProfilesPage";
+import VideoAssetsPage from "./pages/VideoAssetsPage";
+import AutoVideoAssetProfilesPage from "./pages/AutoVideoAssetProfilesPage";
+import AutoVideoAssetsPage from "./pages/AutoVideoAssetsPage";
 
 export const routes = [
   { path: "/dashboard", element: DashboardPage },
@@ -29,4 +32,7 @@ export const routes = [
     path: "/script-generation-profiles",
     element: ScriptGenerationProfilesPage,
   },
+  { path: "/video-assets", element: VideoAssetsPage },
+  { path: "/auto-video-asset-profiles", element: AutoVideoAssetProfilesPage },
+  { path: "/auto-video-assets", element: AutoVideoAssetsPage },
 ];

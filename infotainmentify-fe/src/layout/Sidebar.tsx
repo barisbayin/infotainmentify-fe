@@ -12,6 +12,9 @@ import {
   Shield,
   BookIcon,
   AwardIcon,
+  VideoIcon,
+  FireExtinguisherIcon,
+  CastIcon,
 } from "lucide-react";
 
 type Props = {
@@ -126,6 +129,12 @@ export default function Sidebar({
                 label="Senaryolar"
               />
               <SidebarLink
+                to="/auto-video-assets"
+                icon={VideoIcon}
+                collapsed={collapsed}
+                label="Video Materyaller"
+              />
+              <SidebarLink
                 to="/prompts"
                 icon={FileText}
                 collapsed={collapsed}
@@ -142,6 +151,12 @@ export default function Sidebar({
                 icon={AwardIcon}
                 collapsed={collapsed}
                 label="Senaryo Üretim Profilleri"
+              />
+              <SidebarLink
+                to="/auto-video-asset-profiles"
+                icon={CastIcon}
+                collapsed={collapsed}
+                label="Otomatik Video Üretim Profilleri"
               />
             </SidebarSubList>
           )}
