@@ -45,17 +45,28 @@ const EMPTY: Omit<ScriptGenerationProfileDetailDto, "id"> = {
   isPublic: false,
   allowRetry: true,
   status: "Pending",
-  // 🔄 Yeni alanlar
+
+  // Image
   imageAiConnectionId: null,
   imageModelName: "",
   imageRenderStyle: "",
-  imageAspectRatio: "16:9",
+  imageAspectRatio: "9:16",
+
+  // TTS
   ttsAiConnectionId: null,
   ttsModelName: "",
   ttsVoice: "",
+
+  // Video
   videoAiConnectionId: null,
   videoModelName: "",
   videoTemplate: "",
+
+  // STT  🎤🧠 YENİ
+  sttAiConnectionId: null,
+  sttModelName: "",
+
+  // Auto flags
   autoGenerateAssets: false,
   autoRenderVideo: false,
 };
@@ -507,6 +518,46 @@ export default function ScriptGenerationProfilesPage() {
                           }
                         />
                       </Field>
+                    </div>
+
+                    {/* ==== STT ==== */}
+                    <div className="pt-3 border-t border-neutral-200">
+                      <h3 className="text-sm font-semibold mb-2">
+                        🎧 STT (Speech-to-Text)
+                      </h3>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="AI Bağlantısı">
+                          <SelectBox
+                            value={form.sttAiConnectionId?.toString() ?? ""}
+                            onChange={(v) =>
+                              setForm({
+                                ...form,
+                                sttAiConnectionId: v ? Number(v) : null,
+                              })
+                            }
+                            options={[
+                              { value: "", label: "—" },
+                              ...connections.map((c) => ({
+                                value: c.id.toString(),
+                                label: `${c.name} (${c.provider})`,
+                              })),
+                            ]}
+                          />
+                        </Field>
+
+                        <Field label="STT Model">
+                          <Input
+                            value={form.sttModelName ?? ""}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                sttModelName: e.target.value,
+                              })
+                            }
+                          />
+                        </Field>
+                      </div>
                     </div>
 
                     {/* ==== VIDEO ==== */}

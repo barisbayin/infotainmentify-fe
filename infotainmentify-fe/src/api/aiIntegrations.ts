@@ -11,9 +11,9 @@ export type UserAiConnectionListDto = {
     temperature: number;
 };
 
-// Detay DTO
+// Backend artık STRING gönderiyor → FE'de de STRING olacak
 export type UserAiConnectionDetailDto = UserAiConnectionListDto & {
-    credentials?: Record<string, string> | null;
+    credentials?: string | null;   // <-- ARTIK STRING
 };
 
 // -------------------------

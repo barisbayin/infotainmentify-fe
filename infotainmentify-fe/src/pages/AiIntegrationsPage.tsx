@@ -14,15 +14,17 @@ import {
   Button,
   Field,
   Input,
-  Textarea,
 } from "../components/ui-kit";
+
 import {
   aiIntegrationsApi,
   type UserAiConnectionDetailDto,
 } from "../api/aiIntegrations";
+
 import toast from "react-hot-toast";
 import { useConfirm } from "../components/confirm";
 import SelectBox from "../components/SelectBox";
+import KeyValueEditor from "../components/KeyValueEditor";
 
 import { Brain, Sparkles, Network, Cloud, Atom, Circle } from "lucide-react";
 
@@ -64,25 +66,32 @@ const PROVIDERS = [
     color: "text-neutral-500",
   },
 ];
-const EMPTY: Omit<UserAiConnectionDetailDto, "id"> = {
+
+const EMPTY_FORM = {
   name: "",
   provider: "OpenAI",
   textModel: "",
   imageModel: "",
   videoModel: "",
   temperature: 0.7,
-  credentials: {},
 };
 
 export default function AiIntegrationsPage() {
   const [items, setItems] = useState<UserAiConnectionDetailDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  // FORM STATE (credentials hariç)
   const [form, setForm] =
-    useState<Omit<UserAiConnectionDetailDto, "id">>(EMPTY);
+    useState<Omit<UserAiConnectionDetailDto, "id" | "credentials">>(EMPTY_FORM);
+
+  // CREDENTIALS AYRI STATE (hayat kurtaran değişiklik)
+  const [creds, setCreds] = useState<Record<string, string>>({ "": "" });
+
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const confirm = useConfirm();
 
+  // ---------------- LOAD LIST -----------------
   async function load() {
     setLoading(true);
     try {
@@ -99,11 +108,15 @@ export default function AiIntegrationsPage() {
     load();
   }, []);
 
+  // ---------------- ROW CLICK -----------------
   async function onRowClick(item: UserAiConnectionDetailDto) {
     setSelectedId(item.id);
     setDetailLoading(true);
+
     try {
       const dto = await aiIntegrationsApi.get(item.id);
+
+      // FORM VERİLERİ
       setForm({
         name: dto.name,
         provider: dto.provider,
@@ -111,8 +124,25 @@ export default function AiIntegrationsPage() {
         imageModel: dto.imageModel,
         videoModel: dto.videoModel,
         temperature: dto.temperature,
-        credentials: dto.credentials ?? {},
       });
+
+      // CREDENTIALS VERİLERİ
+      let parsed: Record<string, string> = {};
+      try {
+        if (typeof dto.credentials === "string") {
+          parsed = JSON.parse(dto.credentials);
+        } else {
+          parsed = dto.credentials ?? {};
+        }
+      } catch {
+        parsed = {};
+      }
+
+      if (!parsed || Object.keys(parsed).length === 0) {
+        parsed = { "": "" };
+      }
+
+      setCreds(parsed);
     } catch {
       toast.error("Detay yüklenemedi");
     } finally {
@@ -120,24 +150,33 @@ export default function AiIntegrationsPage() {
     }
   }
 
+  // ---------------- RESET FORM -----------------
   function resetForm() {
     setSelectedId(null);
-    setForm(EMPTY);
+    setForm(EMPTY_FORM);
+    setCreds({ "": "" });
   }
 
+  // ---------------- SAVE -----------------
   async function onSave() {
-    if (!form.name.trim() || !form.provider.trim()) {
-      toast.error("Ad ve sağlayıcı zorunludur");
+    if (!form.name.trim()) {
+      toast.error("Ad zorunludur");
       return;
     }
 
+    const payload: any = {
+      ...form,
+      credentials: JSON.stringify(creds),
+    };
+
     const isUpdate = selectedId != null;
-    const opPromise: Promise<void> = isUpdate
-      ? aiIntegrationsApi.update(selectedId!, form)
-      : aiIntegrationsApi.create(form).then(() => undefined);
+
+    const op = isUpdate
+      ? aiIntegrationsApi.update(selectedId!, payload)
+      : aiIntegrationsApi.create(payload);
 
     try {
-      await toast.promise(opPromise, {
+      await toast.promise(op, {
         loading: "Kaydediliyor…",
         success: isUpdate ? `#${selectedId} güncellendi` : "Yeni kayıt eklendi",
         error: "Kayıt hatası",
@@ -149,15 +188,18 @@ export default function AiIntegrationsPage() {
     }
   }
 
+  // ---------------- DELETE -----------------
   async function onDelete() {
     if (!selectedId) return;
+
     const ok = await confirm({
       title: "Silinsin mi?",
-      message: `#${selectedId} kalıcı olarak silinecek.`,
+      message: `#${selectedId} silinecek.`,
       confirmText: "Sil",
       cancelText: "İptal",
       tone: "danger",
     });
+
     if (!ok) return;
 
     try {
@@ -166,18 +208,19 @@ export default function AiIntegrationsPage() {
       resetForm();
       await load();
     } catch {
-      toast.error("Silme başarısız");
+      toast.error("Silinemedi");
     }
   }
 
+  // ---------------- UI -----------------
   return (
     <Page>
       <div className="grid grid-cols-12 gap-4 h-full">
-        {/* SOL - Liste */}
+        {/* SOL LİSTE */}
         <section className="col-span-12 xl:col-span-7 flex flex-col min-h-0">
           <Toolbar>
             <Button onClick={load} disabled={loading}>
-              {loading ? "Yenileniyor…" : "Yenile"}
+              {loading ? "Yükleniyor…" : "Yenile"}
             </Button>
             <Button variant="primary" onClick={resetForm}>
               Yeni
@@ -190,13 +233,13 @@ export default function AiIntegrationsPage() {
                 <TR>
                   <TH>ID</TH>
                   <TH>Ad</TH>
-                  <TH>Sağlayıcı</TH>
-                  <TH>Metin Modeli</TH>
-                  <TH>Görsel Modeli</TH>
-                  <TH>Video Modeli</TH>
-                  <TH>Temperature</TH>
+                  <TH>Provider</TH>
+                  <TH>Text</TH>
+                  <TH>Image</TH>
+                  <TH>Video</TH>
                 </TR>
               </THead>
+
               <tbody>
                 {items.map((x) => (
                   <TR
@@ -208,12 +251,11 @@ export default function AiIntegrationsPage() {
                     ].join(" ")}
                   >
                     <TD>#{x.id}</TD>
-                    <TD className="font-medium">{x.name}</TD>
+                    <TD>{x.name}</TD>
                     <TD>{x.provider}</TD>
                     <TD>{x.textModel}</TD>
                     <TD>{x.imageModel}</TD>
                     <TD>{x.videoModel}</TD>
-                    <TD>{x.temperature}</TD>
                   </TR>
                 ))}
               </tbody>
@@ -221,147 +263,109 @@ export default function AiIntegrationsPage() {
           </Card>
         </section>
 
-        {/* SAĞ - Detay */}
-        <section className="col-span-12 xl:col-span-5 flex flex-col min-h-0">
-          <Card className="flex-1 flex flex-col">
+        {/* SAĞ DETAY PANEL */}
+        <section className="col-span-12 xl:col-span-5 flex flex-col min-h-0 overflow-hidden">
+          <Card className="flex flex-col flex-1 overflow-hidden">
             <CardHeader>
               <div className="text-lg font-semibold">
                 {selectedId ? `Düzenle #${selectedId}` : "Yeni AI Entegrasyonu"}
               </div>
             </CardHeader>
 
-            <CardBody className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              {detailLoading ? (
-                <div className="p-3 text-sm text-neutral-500">Yükleniyor…</div>
-              ) : (
-                <div className="flex flex-col gap-4 flex-1">
-                  {/* Ad */}
-                  <Field label="Ad">
-                    <Input
-                      value={form.name}
-                      onChange={(e) =>
-                        setForm({ ...form, name: e.target.value })
-                      }
-                      className="rounded-xl border-neutral-300 focus:ring-2 focus:ring-neutral-300"
-                    />
-                  </Field>
-
-                  {/* Sağlayıcı */}
-                  <Field label="Sağlayıcı">
-                    <SelectBox
-                      value={form.provider}
-                      onChange={(v) => setForm({ ...form, provider: v })}
-                      options={PROVIDERS}
-                    />
-                  </Field>
-                  {/* textModel */}
-                  <Field label="Metin Modeli">
-                    <Input
-                      value={form.textModel}
-                      onChange={(e) =>
-                        setForm({ ...form, textModel: e.target.value })
-                      }
-                      className="rounded-xl border-neutral-300 focus:ring-2 focus:ring-neutral-300"
-                    />
-                  </Field>
-
-                  {/* Görsel Modeli */}
-                  <Field label="Görsel Modeli">
-                    <Input
-                      value={form.imageModel}
-                      onChange={(e) =>
-                        setForm({ ...form, imageModel: e.target.value })
-                      }
-                      className="rounded-xl border-neutral-300 focus:ring-2 focus:ring-neutral-300"
-                    />
-                  </Field>
-                  {/* Video Modeli */}
-                  <Field label="Video Modeli">
-                    <Input
-                      value={form.videoModel}
-                      onChange={(e) =>
-                        setForm({ ...form, videoModel: e.target.value })
-                      }
-                      className="rounded-xl border-neutral-300 focus:ring-2 focus:ring-neutral-300"
-                    />
-                  </Field>
-                  {/* temperature */}
-                  <Field label="Temperature">
-                    <Input
-                      type="number"
-                      value={form.temperature}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          temperature: Number(e.target.value),
-                        })
-                      }
-                      className="rounded-xl border-neutral-300 focus:ring-2 focus:ring-neutral-300"
-                    />
-                  </Field>
-
-                  {/* JSON */}
-                  <Field
-                    label="Kimlik Bilgileri (JSON)"
-                    className="flex-1 flex flex-col"
-                  >
-                    <Textarea
-                      className="flex-1 rounded-xl border border-neutral-300 bg-neutral-50 px-3 py-2 
-                   font-mono text-sm resize-none overflow-auto focus:outline-none 
-                   focus:ring-2 focus:ring-neutral-300 transition-all"
-                      placeholder='{ "apiKey": "sk-..." }'
-                      value={JSON.stringify(form.credentials ?? {}, null, 2)}
-                      onChange={(e) => {
-                        const val = e.target.value.trim();
-                        if (!val) {
-                          setForm({ ...form, credentials: {} });
-                          return;
+            <CardBody className="flex-1 overflow-hidden p-0">
+              <div className="h-full overflow-y-auto px-4 py-3 space-y-4">
+                {detailLoading ? (
+                  <div className="p-3 text-sm text-neutral-500">
+                    Yükleniyor…
+                  </div>
+                ) : (
+                  <>
+                    <Field label="Ad">
+                      <Input
+                        value={form.name}
+                        onChange={(e) =>
+                          setForm({ ...form, name: e.target.value })
                         }
-                        try {
-                          const parsed = JSON.parse(val);
-                          if (
-                            typeof parsed === "object" &&
-                            !Array.isArray(parsed)
-                          ) {
-                            setForm({ ...form, credentials: parsed });
-                          }
-                        } catch {
-                          // yazarken hata gösterme
+                      />
+                    </Field>
+
+                    <Field label="Sağlayıcı">
+                      <SelectBox
+                        value={form.provider}
+                        onChange={(v) => setForm({ ...form, provider: v })}
+                        options={PROVIDERS}
+                      />
+                    </Field>
+
+                    <Field label="Metin Modeli">
+                      <Input
+                        value={form.textModel}
+                        onChange={(e) =>
+                          setForm({ ...form, textModel: e.target.value })
                         }
-                      }}
-                      onBlur={(e) => {
-                        try {
-                          JSON.parse(e.target.value);
-                        } catch {
-                          toast.error("JSON formatı hatalı, düzeltin.");
+                      />
+                    </Field>
+
+                    <Field label="Görsel Modeli">
+                      <Input
+                        value={form.imageModel}
+                        onChange={(e) =>
+                          setForm({ ...form, imageModel: e.target.value })
                         }
-                      }}
-                    />
-                  </Field>
-                </div>
-              )}
+                      />
+                    </Field>
+
+                    <Field label="Video Modeli">
+                      <Input
+                        value={form.videoModel}
+                        onChange={(e) =>
+                          setForm({ ...form, videoModel: e.target.value })
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Temperature">
+                      <Input
+                        type="number"
+                        value={form.temperature}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            temperature: Number(e.target.value),
+                          })
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Kimlik Bilgileri (Credentials)">
+                      <KeyValueEditor
+                        value={creds}
+                        onChange={(v) => setCreds(v)}
+                      />
+                    </Field>
+                  </>
+                )}
+              </div>
             </CardBody>
 
-            <CardFooter className="shrink-0 sticky bottom-0">
-              <div className="flex justify-end gap-2">
-                <Button onClick={resetForm} disabled={detailLoading}>
-                  Yeni
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={onDelete}
-                  disabled={!selectedId || detailLoading}
-                >
-                  Sil
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={onSave}
-                  disabled={detailLoading}
-                >
-                  Kaydet
-                </Button>
-              </div>
+            <CardFooter className="shrink-0 sticky bottom-0 bg-white border-t border-neutral-200 p-2 flex justify-end gap-2">
+              <Button onClick={resetForm} disabled={detailLoading}>
+                Yeni
+              </Button>
+              <Button
+                variant="danger"
+                onClick={onDelete}
+                disabled={!selectedId || detailLoading}
+              >
+                Sil
+              </Button>
+              <Button
+                variant="primary"
+                onClick={onSave}
+                disabled={detailLoading}
+              >
+                Kaydet
+              </Button>
             </CardFooter>
           </Card>
         </section>

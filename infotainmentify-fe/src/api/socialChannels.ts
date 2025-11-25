@@ -26,7 +26,7 @@ export interface UserSocialChannelDetailDto {
     channelUrl?: string | null;
     platformChannelId?: string | null;
     tokens?: Record<string, any> | null;
-    tokenExpiresAt?: string | null;
+    tokenExpiresAt?: Date | null;
     scopes?: string | null;
 }
 

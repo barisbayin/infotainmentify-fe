@@ -14,6 +14,8 @@ import ScriptGenerationProfilesPage from "./pages/ScriptGenerationProfilesPage";
 import VideoAssetsPage from "./pages/VideoAssetsPage";
 import AutoVideoAssetProfilesPage from "./pages/AutoVideoAssetProfilesPage";
 import AutoVideoAssetsPage from "./pages/AutoVideoAssetsPage";
+import VideoGenerationProfilesPage from "./pages/VideoGenerationProfilesPage";
+import RenderProfilesPage from "./pages/RenderProfilesPage";
 
 export const routes = [
   { path: "/dashboard", element: DashboardPage },
@@ -35,4 +37,6 @@ export const routes = [
   { path: "/video-assets", element: VideoAssetsPage },
   { path: "/auto-video-asset-profiles", element: AutoVideoAssetProfilesPage },
   { path: "/auto-video-assets", element: AutoVideoAssetsPage },
+  { path: "/video-generation-profiles", element: VideoGenerationProfilesPage },
+  { path: "/render-profiles", element: RenderProfilesPage },
 ];

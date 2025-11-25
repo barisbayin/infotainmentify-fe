@@ -27,6 +27,7 @@ import {
   type UserSocialChannelListDto,
   type SocialChannelType,
 } from "../api/socialChannels";
+import { generateCodeChallenge, generateCodeVerifier } from "../utils/oauth";
 
 // --------------------------------------------------
 // Boş DTO
@@ -147,6 +148,36 @@ export default function SocialChannelsPage() {
     }
   }
 
+  const refreshToken = form.tokens?.refresh_token;
+
+  const isConnected =
+    refreshToken !== undefined &&
+    refreshToken !== null &&
+    refreshToken !== "" &&
+    refreshToken.trim().length > 3;
+
+  async function startYouTubeOAuth() {
+    const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+
+    // LocalStorage’da tutalım
+    localStorage.setItem("yt_pkce_verifier", verifier);
+
+    const params = new URLSearchParams({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      redirect_uri: "http://localhost:5173/oauth/youtube/callback",
+      response_type: "code",
+      access_type: "offline",
+      include_granted_scopes: "true",
+      scope: "openid https://www.googleapis.com/auth/youtube.upload",
+      prompt: "consent",
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+    });
+
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }
+
   // ----------------------- Render -----------------------
   return (
     <Page>
@@ -259,6 +290,20 @@ export default function SocialChannelsPage() {
                       }
                     />
                   </Field>
+
+                  {form.channelType === "YouTube" && (
+                    <div className="flex gap-3">
+                      {!localStorage.getItem("yt_refresh_token") ? (
+                        <Button variant="primary" onClick={startYouTubeOAuth}>
+                          🎥 YouTube Bağla
+                        </Button>
+                      ) : (
+                        <Button variant="primary" disabled>
+                          ✔ Bağlı
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   <Field label="Token Bilgileri (JSON)">
                     <Textarea

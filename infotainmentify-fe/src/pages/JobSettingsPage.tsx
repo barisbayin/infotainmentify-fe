@@ -36,15 +36,15 @@ import { getSignalRConnection } from "../lib/signalr"; // ✅ eklendi
 // Job türleri
 const JOB_TYPES = [
   { value: "TopicGeneration", label: "Topic Üretimi" },
-  { value: "ScriptGeneration", label: "Story Üretimi" },
-  // { value: "YouTubeUpload", label: "YouTube Yükleme" },
-  // { value: "ThumbnailRender", label: "Küçük Görsel Render" },
+  { value: "ScriptGeneration", label: "Script Üretimi" },
+  { value: "AutoVideoGeneration", label: "Otomatik Video Üretimi" }, // ✅ yeni
 ];
 
 // JobType -> ProfileType eşleme
 const PROFILE_TYPE_MAP: Record<string, string> = {
   TopicGeneration: "TopicGenerationProfile",
-  ScriptGeneration: "ScriptGenerationProfile", // ✅ eklendi
+  ScriptGeneration: "ScriptGenerationProfile",
+  AutoVideoGeneration: "VideoGenerationProfile", // ✅ eklendi
   YouTubeUpload: "YouTubeUploadProfile",
   ThumbnailRender: "ThumbnailRenderProfile",
 };
@@ -150,12 +150,15 @@ export default function JobSettingsPage() {
     }
 
     const cleanedType = profileType.split(",")[0].split(".").pop()!;
+
     const endpointMap: Record<string, string> = {
       TopicGenerationProfile: "topicgenerationprofiles",
       ScriptGenerationProfile: "scriptgenerationprofiles",
+      VideoGenerationProfile: "videogenerationprofiles", // ✅ eklendi
       YouTubeUploadProfile: "youtubeuploadprofiles",
       ThumbnailRenderProfile: "thumbnailrenderprofiles",
     };
+
     const apiPath = endpointMap[cleanedType];
     if (!apiPath) {
       toast.error(`Desteklenmeyen profil tipi: ${cleanedType}`);
@@ -166,12 +169,11 @@ export default function JobSettingsPage() {
       const list = await http<any[]>(`/api/${apiPath}`);
       const opts = list.map((x) => ({
         value: String(x.id),
-        label: `${x.id} — ${
+        label:
           x.profileName?.trim() ||
           x.name?.trim() ||
           x.title?.trim() ||
-          "(İsimsiz Profil)"
-        }`,
+          `(Profil #${x.id})`,
       }));
       setProfileOptions(opts);
     } catch {

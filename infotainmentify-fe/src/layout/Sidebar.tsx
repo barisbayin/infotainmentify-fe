@@ -13,8 +13,9 @@ import {
   BookIcon,
   AwardIcon,
   VideoIcon,
-  FireExtinguisherIcon,
   CastIcon,
+  FilmIcon,
+  LayersIcon,
 } from "lucide-react";
 
 type Props = {
@@ -40,14 +41,17 @@ export default function Sidebar({
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     genel: true,
     icerik: true,
+    video: true,
+    gorevler: true,
     ayarlar: true,
   });
+
   const toggle = (key: string) =>
     setOpenGroups((s) => ({ ...s, [key]: !s[key] }));
 
   return (
     <>
-      {/* Mobil görünüm için arkaplan */}
+      {/* Mobile overlay */}
       <div
         className={`fixed inset-0 bg-black/30 z-40 lg:hidden transition-opacity ${
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
@@ -56,15 +60,16 @@ export default function Sidebar({
       />
 
       <aside
-        className={`z-50 bg-white border-r border-neutral-200 h-full flex flex-col transition-all duration-200
-        overflow-x-hidden box-border
-        ${
-          collapsed ? "w-[72px]" : "w-[240px]"
-        }  fixed lg:static left-0 top-0 lg:translate-x-0
-        ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        className={`
+          z-50 bg-white border-r border-neutral-200 h-full flex flex-col
+          transition-all duration-200 overflow-x-hidden box-border
+          ${collapsed ? "w-[72px]" : "w-[240px]"}
+          fixed lg:static left-0 top-0
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
       >
-        {/* Başlık */}
-        <div className="h-14 flex items-center px-3 border-b border-neutral-200 overflow-x-hidden">
+        {/* Header */}
+        <div className="h-14 flex items-center px-3 border-b border-neutral-200">
           <img
             src="/logo.png"
             alt="Infotainmentify"
@@ -79,20 +84,19 @@ export default function Sidebar({
             type="button"
             className="ml-auto px-2 py-1 rounded-lg border border-neutral-300 text-xs hover:bg-neutral-100"
             onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? "Genişlet" : "Daralt"}
           >
             {collapsed ? ">" : "<"}
           </button>
         </div>
 
-        {/* Menü */}
+        {/* Menu */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-          {/* Genel */}
+          {/* GENEL */}
           <SidebarGroupHeader
             onClick={() => toggle("genel")}
             collapsed={collapsed}
             open={openGroups.genel}
-            title="Genel"
+            title="GENEL"
             icon={Home}
           />
           {openGroups.genel && (
@@ -106,7 +110,7 @@ export default function Sidebar({
             </SidebarSubList>
           )}
 
-          {/* İçerik */}
+          {/* İÇERİK YÖNETİMİ */}
           <SidebarGroupHeader
             onClick={() => toggle("icerik")}
             collapsed={collapsed}
@@ -129,12 +133,6 @@ export default function Sidebar({
                 label="Senaryolar"
               />
               <SidebarLink
-                to="/auto-video-assets"
-                icon={VideoIcon}
-                collapsed={collapsed}
-                label="Video Materyaller"
-              />
-              <SidebarLink
                 to="/prompts"
                 icon={FileText}
                 collapsed={collapsed}
@@ -152,24 +150,55 @@ export default function Sidebar({
                 collapsed={collapsed}
                 label="Senaryo Üretim Profilleri"
               />
+            </SidebarSubList>
+          )}
+
+          {/* VIDEO ÜRETİMİ */}
+          <SidebarGroupHeader
+            onClick={() => toggle("video")}
+            collapsed={collapsed}
+            open={openGroups.video}
+            title="VİDEO ÜRETİMİ"
+            icon={VideoIcon}
+          />
+          {openGroups.video && (
+            <SidebarSubList collapsed={collapsed}>
               <SidebarLink
-                to="/auto-video-asset-profiles"
+                to="/render-profiles"
+                icon={FilmIcon}
+                collapsed={collapsed}
+                label="Render Profilleri"
+              />
+              <SidebarLink
+                to="/video-generation-profiles"
                 icon={CastIcon}
                 collapsed={collapsed}
-                label="Otomatik Video Üretim Profilleri"
+                label="Video Üretim Profilleri"
+              />
+              <SidebarLink
+                to="/auto-video-pipelines"
+                icon={LayersIcon}
+                collapsed={collapsed}
+                label="Üretim Süreçleri"
+              />
+              <SidebarLink
+                to="/auto-video-assets"
+                icon={FilmIcon}
+                collapsed={collapsed}
+                label="Video Materyaller"
               />
             </SidebarSubList>
           )}
 
-          {/* İçerik */}
+          {/* GÖREV YÖNETİMİ */}
           <SidebarGroupHeader
             onClick={() => toggle("gorevler")}
             collapsed={collapsed}
-            open={openGroups.icerik}
+            open={openGroups.gorevler}
             title="GÖREV YÖNETİMİ"
-            icon={FileText}
+            icon={ListChecks}
           />
-          {openGroups.icerik && (
+          {openGroups.gorevler && (
             <SidebarSubList collapsed={collapsed}>
               <SidebarLink
                 to="/job-settings"
@@ -186,12 +215,12 @@ export default function Sidebar({
             </SidebarSubList>
           )}
 
-          {/* Ayarlar */}
+          {/* AYARLAR */}
           <SidebarGroupHeader
             onClick={() => toggle("ayarlar")}
             collapsed={collapsed}
             open={openGroups.ayarlar}
-            title="Ayarlar"
+            title="AYARLAR"
             icon={Settings}
           />
           {openGroups.ayarlar && (
@@ -218,7 +247,7 @@ export default function Sidebar({
           )}
         </nav>
 
-        {/* Alt bilgi */}
+        {/* Footer */}
         <div className="shrink-0 p-2 border-t border-neutral-200 text-xs text-neutral-500">
           v0.1 • Yerel
         </div>
@@ -233,24 +262,12 @@ function SidebarGroupHeader({
   collapsed,
   onClick,
   icon: Icon,
-}: {
-  title: string;
-  open: boolean;
-  collapsed: boolean;
-  onClick: () => void;
-  icon: React.ElementType;
-}) {
+}: any) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={[
-        "w-full flex items-center gap-2",
-        "px-2 py-2 rounded-lg",
-        "bg-neutral-50 hover:bg-neutral-100",
-        "text-neutral-700 select-none",
-        "border border-neutral-200",
-      ].join(" ")}
+      className="w-full flex items-center gap-2 px-2 py-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200 select-none"
     >
       <span className="inline-flex items-center justify-center h-4 w-4">
         {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -267,19 +284,12 @@ function SidebarGroupHeader({
   );
 }
 
-function SidebarSubList({
-  children,
-  collapsed,
-}: {
-  children: React.ReactNode;
-  collapsed: boolean;
-}) {
+function SidebarSubList({ children, collapsed }: any) {
   return (
     <div
-      className={[
-        "mt-1 mb-2",
-        collapsed ? "" : "pl-3 border-l border-neutral-200/70",
-      ].join(" ")}
+      className={`mt-1 mb-2 ${
+        collapsed ? "" : "pl-3 border-l border-neutral-200/70"
+      }`}
     >
       <div className="flex flex-col gap-1">{children}</div>
     </div>
@@ -292,9 +302,7 @@ function SidebarLink({ to, label, collapsed, icon: Icon }: LinkProps) {
       to={to}
       className={({ isActive }) =>
         [
-          "group flex items-center gap-2 w-full",
-          "px-3 py-2 rounded-xl",
-          "hover:bg-neutral-100 text-neutral-700",
+          "group flex items-center gap-2 w-full px-3 py-2 rounded-xl hover:bg-neutral-100 text-neutral-700",
           isActive
             ? "bg-neutral-100 font-medium relative before:content-[''] before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-neutral-900"
             : "",
@@ -303,11 +311,9 @@ function SidebarLink({ to, label, collapsed, icon: Icon }: LinkProps) {
     >
       <Icon
         size={18}
-        className="text-neutral-500 group-hover:text-neutral-700 transition-colors shrink-0"
+        className="text-neutral-500 group-hover:text-neutral-700 transition-colors"
       />
-      {!collapsed && (
-        <span className="text-sm truncate whitespace-nowrap">{label}</span>
-      )}
+      {!collapsed && <span className="text-sm truncate">{label}</span>}
     </NavLink>
   );
 }

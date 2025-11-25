@@ -32,6 +32,10 @@ export interface ScriptGenerationProfileListDto {
     ttsAiConnectionId?: number | null;
     ttsAiConnectionName?: string | null;
 
+    // 🗣️ TTS AI
+    sttAiConnectionId?: number | null;
+    sttAiConnectionName?: string | null;
+
     // 🎬 Video AI
     videoAiConnectionId?: number | null;
     videoAiConnectionName?: string | null;
@@ -73,6 +77,9 @@ export interface ScriptGenerationProfileDetailDto {
     ttsAiConnectionId?: number | null;
     ttsModelName?: string | null;
     ttsVoice?: string | null;
+
+    sttAiConnectionId?: number | null;
+    sttModelName?: string | null;
 
     // 🎬 Video üretimi
     videoAiConnectionId?: number | null;
