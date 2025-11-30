@@ -1,42 +1,58 @@
-// src/routes.tsx
-import PromptsPage from "./pages/PromptsPage";
-import DashboardPage from "./pages/DashboardPage";
-import TopicsPage from "./pages/TopicsPage";
-// import TopicsGeneratorPage from "./pages/TopicsGeneratorPage";
-import BlankPageTemplate from "./pages/BlankPageTemplate";
-import AiIntegrationsPage from "./pages/AiIntegrationsPage";
-import SocialChannelsPage from "./pages/SocialChannelsPage";
-import TopicGenerationProfilesPage from "./pages/TopicGenerationProfilesPage";
-import JobSettingsPage from "./pages/JobSettingsPage";
-import JobExecutionsPage from "./pages/JobExecutionsPage";
-import ScriptListPage from "./pages/ScriptListPage";
-import ScriptGenerationProfilesPage from "./pages/ScriptGenerationProfilesPage";
-import VideoAssetsPage from "./pages/VideoAssetsPage";
-import AutoVideoAssetProfilesPage from "./pages/AutoVideoAssetProfilesPage";
-import AutoVideoAssetsPage from "./pages/AutoVideoAssetsPage";
-import VideoGenerationProfilesPage from "./pages/VideoGenerationProfilesPage";
-import RenderProfilesPage from "./pages/RenderProfilesPage";
+import { lazy, type ComponentType } from "react";
 
-export const routes = [
+// 1. ELİMİZDE KESİN OLANLAR (Bunları import ediyoruz)
+const PromptsPage = lazy(() => import("./pages/PromptsPage"));
+const BlankPage = lazy(() => import("./pages/BlankPageTemplate"));
+const TopicsPage = lazy(() => import("./pages/TopicsPage"));
+const AiConnectionsPage = lazy(() => import("./pages/AiConnectionsPage"));
+const SocialChannelsPage = lazy(() => import("./pages/SocialChannelsPage"));
+const ConceptsPage = lazy(() => import("./pages/ConceptsPage"));
+const ScriptsPage = lazy(() => import("./pages/ScriptListPage"));
+const TopicPresetsPage = lazy(() => import("./pages/TopicPresetsPage"));
+const ScriptPresetsPage = lazy(() => import("./pages/ScriptPresetsPage"));
+const ImagePresetsPage = lazy(() => import("./pages/ImagePresetsPage"));
+const TtsPresetsPage = lazy(() => import("./pages/TtsPresetsPage"));
+const RenderPresetsPage = lazy(() => import("./pages/RenderPresetsPage"));
+const VideoPresetsPage = lazy(() => import("./pages/VideoPresetsPage"));
+const SttPresetsPage = lazy(() => import("./pages/SttPresetsPage"));
+const PipelineTemplatesPage = lazy(
+  () => import("./pages/PipelineTemplatesPage")
+);
+const PipelineRunsPage = lazy(() => import("./pages/PipelineRunsPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+
+// 2. HENÜZ OLMAYANLAR (Dosyayı import etme, direkt BlankPage değişkenini kullan)
+// const DashboardPage = lazy(() => import("./pages/DashboardPage")); // ❌ BU DOSYA YOKSA PATLAR!
+
+export interface AppRoute {
+  path: string;
+  element: ComponentType;
+}
+
+export const routes: AppRoute[] = [
+  // --- MEVCUT SAYFALAR ---
   { path: "/dashboard", element: DashboardPage },
   { path: "/prompts", element: PromptsPage },
   { path: "/topics", element: TopicsPage },
-  // { path: "/generator", element: TopicsGeneratorPage },
-  { path: "/generate", element: BlankPageTemplate },
-  { path: "/plugins", element: BlankPageTemplate },
-  { path: "/ai-integrations", element: AiIntegrationsPage },
+  { path: "/ai-connections", element: AiConnectionsPage },
   { path: "/social-channels", element: SocialChannelsPage },
-  { path: "/topic-generation-profiles", element: TopicGenerationProfilesPage },
-  { path: "/job-settings", element: JobSettingsPage },
-  { path: "/job-executions", element: JobExecutionsPage },
-  { path: "/scripts", element: ScriptListPage },
-  {
-    path: "/script-generation-profiles",
-    element: ScriptGenerationProfilesPage,
-  },
-  { path: "/video-assets", element: VideoAssetsPage },
-  { path: "/auto-video-asset-profiles", element: AutoVideoAssetProfilesPage },
-  { path: "/auto-video-assets", element: AutoVideoAssetsPage },
-  { path: "/video-generation-profiles", element: VideoGenerationProfilesPage },
-  { path: "/render-profiles", element: RenderProfilesPage },
+  { path: "/concepts", element: ConceptsPage },
+  { path: "/scripts", element: ScriptsPage },
+  { path: "/topic-presets", element: TopicPresetsPage },
+  { path: "/script-presets", element: ScriptPresetsPage },
+  { path: "/image-presets", element: ImagePresetsPage },
+  { path: "/tts-presets", element: TtsPresetsPage },
+  { path: "/render-presets", element: RenderPresetsPage },
+  { path: "/video-presets", element: VideoPresetsPage },
+  { path: "/stt-presets", element: SttPresetsPage },
+  { path: "/pipeline-templates", element: PipelineTemplatesPage },
+  { path: "/pipeline-runs", element: PipelineRunsPage },
+
+  // --- GEÇİCİ SAYFALAR (Hepsi BlankPage'e gider) ---
+  // Dashboard dosyası olmadığı için BlankPage kullanıyoruz
+
+  { path: "/assets", element: BlankPage },
+  { path: "/users", element: BlankPage },
+  { path: "/job-settings", element: BlankPage },
+  { path: "/job-executions", element: BlankPage },
 ];

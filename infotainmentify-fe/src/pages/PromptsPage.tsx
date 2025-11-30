@@ -1,353 +1,536 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useDebounce } from "../hooks/useDebounce";
+import {
+  promptsApi,
+  type PromptListDto,
+  type SavePromptDto,
+} from "../api/prompts";
+import toast from "react-hot-toast";
 import {
   Page,
   Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-  Toolbar,
+  Button,
+  Input,
+  Textarea,
+  Label,
+  Badge,
   Table,
   THead,
   TR,
   TH,
   TD,
-  Button,
-  Badge,
-  Field,
-  Input,
-  Textarea,
+  Modal,
 } from "../components/ui-kit";
-import { promptsApi, type Prompt } from "../api";
-import toast from "react-hot-toast";
-import { useConfirm } from "../components/confirm";
+import {
+  Plus,
+  Trash2,
+  Save,
+  Search,
+  RefreshCw,
+  X,
+  FileText,
+  Maximize2,
+  Copy,
+} from "lucide-react";
 
-const EMPTY: Omit<Prompt, "id"> = {
+const EMPTY_FORM: SavePromptDto = {
   name: "",
   category: "",
-  language: "en-US",
+  language: "tr-TR",
   isActive: true,
   body: "",
   systemPrompt: "",
+  description: "",
 };
 
 export default function PromptsPage() {
-  const [items, setItems] = useState<Prompt[]>([]);
-  const [q, setQ] = useState("");
+  const [items, setItems] = useState<PromptListDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [form, setForm] = useState<Omit<Prompt, "id">>(EMPTY);
-  const debouncedQ = useDebouncedValue(q, 300);
-  const confirm = useConfirm();
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
 
-  async function load() {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [form, setForm] = useState<SavePromptDto>(EMPTY_FORM);
+
+  // Modals
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [previewModal, setPreviewModal] = useState<{
+    title: string;
+    content: string;
+  } | null>(null);
+
+  const loadList = async () => {
     setLoading(true);
     try {
-      setItems(await promptsApi.list(debouncedQ));
-    } catch (err) {
-      console.error(err);
+      const data = await promptsApi.list(debouncedSearch);
+      setItems(data);
+    } catch (error) {
       toast.error("Liste yüklenemedi");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    load(); // eslint-disable-next-line
-  }, [debouncedQ]);
+    loadList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
-  async function onRowClick(p: Prompt) {
-    setSelectedId(p.id);
+  const handleSelect = async (id: number) => {
+    if (id === selectedId) return;
+
+    setSelectedId(id);
     setDetailLoading(true);
     try {
-      const dto = await promptsApi.get(p.id);
+      const data = await promptsApi.get(id);
       setForm({
-        name: dto.name ?? "",
-        category: dto.category ?? "",
-        language: dto.language ?? "",
-        isActive: !!dto.isActive,
-        body: dto.body ?? "",
-        systemPrompt: dto.systemPrompt ?? "",
+        name: data.name,
+        category: data.category ?? "",
+        language: data.language ?? "tr-TR",
+        description: data.description ?? "", // 🔥 BURASI VARDI AMA INPUT YOKTU
+        isActive: data.isActive,
+        body: data.body,
+        systemPrompt: data.systemPrompt ?? "",
       });
+    } catch (error) {
+      toast.error("Detay yüklenemedi.");
     } finally {
       setDetailLoading(false);
     }
-  }
+  };
 
-  function resetForm() {
+  const handleNew = () => {
     setSelectedId(null);
-    setForm(EMPTY);
-  }
+    setForm(EMPTY_FORM);
+  };
 
-  async function onSave() {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.body.trim()) {
-      toast.error(
-        `${!form.name.trim() ? "Başlık gerekli" : ""}${
-          !form.name.trim() && !form.body.trim() ? " • " : ""
-        }${!form.body.trim() ? "İçerik gerekli" : ""}`
-      );
+      toast.error("İsim ve Prompt zorunludur.");
       return;
     }
 
-    const isUpdate = selectedId != null;
-    const opPromise: Promise<void> = isUpdate
-      ? promptsApi.update(selectedId!, form)
-      : promptsApi.create(form).then(() => undefined);
-
+    setDetailLoading(true);
     try {
-      await toast.promise(opPromise, {
-        loading: "Kaydediliyor…",
-        success: isUpdate
-          ? `#${selectedId} güncellendi`
-          : "Yeni kayıt oluşturuldu",
-        error: "Kayıt başarısız",
-      });
-      resetForm();
-      await load();
-    } catch (err: any) {
-      const d = err?.detail as any;
-      if (d?.errors) {
-        const list: string[] = [];
-        for (const [k, arr] of Object.entries(d.errors) as [
-          string,
-          string[]
-        ][]) {
-          arr.forEach((m) => list.push(`${k}: ${m}`));
-        }
-        if (list.length) toast.error(list.join(" • "));
+      if (selectedId) {
+        await promptsApi.update(selectedId, form);
+        toast.success("Güncellendi.");
+      } else {
+        await promptsApi.create(form);
+        toast.success("Oluşturuldu.");
+        handleNew();
       }
+      loadList();
+    } catch (error) {
+      toast.error("İşlem başarısız.");
+    } finally {
+      setDetailLoading(false);
     }
-  }
+  };
 
-  async function onDelete() {
+  const handleDeleteClick = () => setIsDeleteModalOpen(true);
+
+  const confirmDelete = async () => {
     if (!selectedId) return;
-
-    const ok = await confirm({
-      title: "Prompt silinsin mi?",
-      message: (
-        <>
-          <b>#{selectedId}</b> kalıcı olarak silinecek. Bu işlem geri alınamaz.
-        </>
-      ),
-      confirmText: "Sil",
-      cancelText: "İptal",
-      tone: "danger",
-      dismissOnBackdrop: true,
-    });
-    if (!ok) return;
-
+    setDetailLoading(true);
     try {
       await promptsApi.delete(selectedId);
-      toast.success(`Silindi #${selectedId}`);
-      resetForm();
-      await load();
-    } catch (err) {
-      console.error(err);
-      toast.error("Silme başarısız");
+      toast.success("Silindi.");
+      setIsDeleteModalOpen(false);
+      handleNew();
+      loadList();
+    } catch (error) {
+      toast.error("Silme başarısız.");
+    } finally {
+      setDetailLoading(false);
     }
-  }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Kopyalandı!");
+  };
 
   return (
     <Page>
-      <div className="grid grid-cols-12 gap-4 h-full">
-        {/* SOL — Liste */}
-        <section className="col-span-12 xl:col-span-7 flex flex-col min-h-0">
-          <Toolbar>
-            <Input
-              placeholder="Prompt ara…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <Button onClick={load} disabled={loading}>
-              {loading ? "Yükleniyor…" : "Yenile"}
+      <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
+        {/* SOL: LİSTE */}
+        <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
+          <div className="flex gap-2 shrink-0">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
+              <Input
+                placeholder="Ara..."
+                className="pl-9 bg-zinc-900/50 border-zinc-800 focus:border-indigo-500"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={loadList}
+              className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+            >
+              <RefreshCw className={loading ? "animate-spin" : ""} size={18} />
             </Button>
-            <Button variant="primary" onClick={resetForm}>
-              Yeni
+            <Button
+              onClick={handleNew}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg shadow-indigo-500/20 px-4 whitespace-nowrap"
+            >
+              <Plus size={18} className="mr-2" /> Yeni
             </Button>
-          </Toolbar>
+          </div>
 
-          <Card className="mt-3 flex-1 min-h-0 overflow-auto">
-            <Table>
-              <THead>
-                <TR>
-                  <TH>ID</TH>
-                  <TH>Ad</TH>
-                  <TH>Kategori</TH>
-                  <TH>Dil</TH>
-                  <TH>Durum</TH>
-                </TR>
-              </THead>
-              <tbody>
-                {items.map((p) => {
-                  const passive = !p.isActive;
-                  const selected = selectedId === p.id;
-                  return (
+          <Card className="flex-1 min-h-0 p-0 overflow-hidden flex flex-col border-zinc-800 bg-zinc-900/40">
+            <div className="overflow-auto flex-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+              <Table className="border-none w-full">
+                <THead>
+                  <TR className="bg-zinc-900/80 sticky top-0 z-10 backdrop-blur-md">
+                    <TH className="text-zinc-400 font-medium">Ad</TH>
+                    <TH className="text-zinc-400 font-medium hidden sm:table-cell">
+                      Kategori
+                    </TH>
+                    <TH className="text-zinc-400 font-medium">Dil</TH>
+                    <TH className="text-zinc-400 font-medium hidden md:table-cell">
+                      Açıklama
+                    </TH>
+                    <TH className="text-zinc-400 font-medium text-center w-24">
+                      Durum
+                    </TH>
+                  </TR>
+                </THead>
+                <tbody>
+                  {items.map((item) => (
                     <TR
-                      key={p.id}
-                      onClick={() => onRowClick(p)}
-                      className={[
-                        "cursor-pointer border-b border-neutral-100",
-                        passive
-                          ? "bg-rose-50/60 hover:bg-rose-50 text-rose-800"
-                          : "hover:bg-neutral-50",
-                        selected
-                          ? passive
-                            ? "ring-1 ring-rose-300"
-                            : "bg-neutral-100"
-                          : "",
-                      ].join(" ")}
+                      key={item.id}
+                      onClick={() => handleSelect(item.id)}
+                      className={`cursor-pointer transition-all border-b border-zinc-800/50 hover:bg-zinc-800/40 
+                        ${
+                          selectedId === item.id
+                            ? "bg-indigo-500/10 border-l-4 border-l-indigo-500"
+                            : "border-l-4 border-l-transparent"
+                        }
+                        ${!item.isActive ? "opacity-70" : ""}`}
                     >
-                      <TD>#{p.id}</TD>
-                      <TD className="font-medium">{p.name}</TD>
-                      <TD>{p.category}</TD>
-                      <TD>{p.language}</TD>
-                      <TD>
-                        <Badge tone={p.isActive ? "success" : "danger"}>
-                          {p.isActive ? "Aktif" : "Pasif"}
+                      <TD className="font-medium text-zinc-200 py-3">
+                        {item.name}
+                      </TD>
+                      <TD className="text-zinc-400 py-3 hidden sm:table-cell">
+                        {item.category || "-"}
+                      </TD>
+                      <TD className="text-zinc-500 text-xs py-3">
+                        {item.language}
+                      </TD>
+                      <TD className="text-zinc-500 text-xs py-3 hidden md:table-cell max-w-xs truncate">
+                        {item.description || "..."}
+                      </TD>
+                      <TD className="text-center py-3">
+                        <Badge
+                          variant={item.isActive ? "success" : "error"}
+                          className="scale-90"
+                        >
+                          {item.isActive ? "Aktif" : "Pasif"}
                         </Badge>
                       </TD>
                     </TR>
-                  );
-                })}
-              </tbody>
-            </Table>
+                  ))}
+                  {items.length === 0 && !loading && (
+                    <TR>
+                      <TD
+                        colSpan={5}
+                        className="text-center py-12 text-zinc-500 flex flex-col items-center justify-center gap-2"
+                      >
+                        <FileText size={24} className="opacity-50" />
+                        <span>Kayıt bulunamadı.</span>
+                      </TD>
+                    </TR>
+                  )}
+                </tbody>
+              </Table>
+            </div>
+            <div className="p-2 border-t border-zinc-800 bg-zinc-900/50 text-xs text-zinc-500 text-center shrink-0">
+              Toplam {items.length} kayıt
+            </div>
           </Card>
-        </section>
+        </div>
 
-        {/* SAĞ — Detay */}
-        <section className="col-span-12 xl:col-span-5 flex flex-col min-h-0">
-          <Card className="flex-1 min-h-0 flex flex-col">
-            <CardHeader>
-              <div className="text-lg font-semibold text-neutral-800">
-                {selectedId ? `Düzenle #${selectedId}` : "Yeni Prompt"}
+        {/* SAĞ: FORM */}
+        <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-0">
+          <Card className="h-full flex flex-col overflow-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0">
+            <div className="flex justify-between items-center p-4 border-b border-zinc-800/50 shrink-0 bg-zinc-900/30">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-1.5 h-6 rounded-full shadow-lg ${
+                    selectedId ? "bg-indigo-500" : "bg-emerald-500"
+                  }`}
+                />
+                <h2 className="text-md font-bold text-white tracking-tight">
+                  {selectedId ? "Düzenle" : "Yeni"}
+                </h2>
               </div>
               {selectedId && (
-                <div className="text-xs text-neutral-500">Detay yüklendi</div>
+                <Badge variant="neutral" className="text-[10px]">
+                  #{selectedId}
+                </Badge>
               )}
-            </CardHeader>
+            </div>
 
-            {/* 🔧 body artık esnek yapıda */}
-            <CardBody className="flex flex-col flex-1 min-h-0 overflow-hidden space-y-3">
+            {/* Form Body: Scrollable & Flex */}
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 scrollbar-thin scrollbar-thumb-zinc-700">
               {detailLoading ? (
-                <div className="p-3 text-sm text-neutral-500">Yükleniyor…</div>
+                <div className="flex h-full items-center justify-center text-zinc-500 gap-2">
+                  <RefreshCw className="animate-spin" /> Yükleniyor...
+                </div>
               ) : (
                 <>
-                  <Field label="Ad">
+                  {/* 1. SATIR: AD (Tam Genişlik) */}
+                  <div>
+                    <Label className="mb-1.5">
+                      Prompt Adı <span className="text-indigo-400">*</span>
+                    </Label>
                     <Input
                       value={form.name}
                       onChange={(e) =>
                         setForm({ ...form, name: e.target.value })
                       }
+                      placeholder="Örn: Viral YouTube Intro"
+                      className="focus:border-indigo-500 bg-zinc-950/50 border-zinc-800 h-9 text-sm"
                     />
-                  </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Kategori">
+                  </div>
+
+                  {/* 2. SATIR: KATEGORİ - DİL - DURUM (3 Eşit Kolon) */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="mb-1.5">Kategori</Label>
                       <Input
-                        value={form.category ?? ""}
+                        value={form.category}
                         onChange={(e) =>
                           setForm({ ...form, category: e.target.value })
                         }
+                        placeholder="Script"
+                        className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
                       />
-                    </Field>
-                    <Field label="Dil">
+                    </div>
+                    <div>
+                      <Label className="mb-1.5">Dil</Label>
                       <Input
-                        value={form.language ?? ""}
+                        value={form.language}
                         onChange={(e) =>
                           setForm({ ...form, language: e.target.value })
                         }
+                        className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
                       />
-                    </Field>
+                    </div>
+                    <div>
+                      <Label className="mb-1.5">Durum</Label>
+                      <div
+                        onClick={() =>
+                          setForm({ ...form, isActive: !form.isActive })
+                        }
+                        className={`flex items-center justify-between w-full h-9 px-2 rounded-xl border cursor-pointer transition-all select-none ${
+                          form.isActive
+                            ? "bg-emerald-500/10 border-emerald-500/30"
+                            : "bg-rose-500/10 border-rose-500/30"
+                        }`}
+                      >
+                        <span
+                          className={`text-xs font-medium ${
+                            form.isActive ? "text-emerald-400" : "text-rose-400"
+                          }`}
+                        >
+                          {form.isActive ? "Aktif" : "Pasif"}
+                        </span>
+                        <div
+                          className={`w-8 h-4 rounded-full relative transition-colors ${
+                            form.isActive ? "bg-emerald-500" : "bg-rose-500"
+                          }`}
+                        >
+                          <div
+                            className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
+                              form.isActive ? "left-4.5" : "left-0.5"
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <label className="inline-flex items-center gap-2 select-none">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-neutral-300"
-                      checked={form.isActive}
-                      onChange={(e) =>
-                        setForm({ ...form, isActive: e.target.checked })
-                      }
-                    />
-                    <span className="text-sm text-neutral-700">Aktif</span>
-                  </label>
 
-                  {/* 🧠 System Prompt */}
-                  <Field
-                    label="System Prompt (Modelin Rolü)"
-                    className="flex flex-col mb-4"
-                  >
+                  <div>
+                    <Label className="mb-1.5">Açıklama</Label>
+                    <Input
+                      value={form.description}
+                      onChange={(e) =>
+                        setForm({ ...form, description: e.target.value })
+                      }
+                      placeholder="Bu prompt ne işe yarar? (Opsiyonel)"
+                      className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <Label>System Prompt (Rol)</Label>
+                      <button
+                        onClick={() =>
+                          setPreviewModal({
+                            title: "System Prompt (Rol Tanımı)",
+                            content: form.systemPrompt || "",
+                          })
+                        }
+                        className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                      >
+                        <Maximize2 size={12} /> Genişlet
+                      </button>
+                    </div>
                     <Textarea
-                      className="min-h-[120px] resize-none overflow-auto border border-neutral-300 rounded-xl 
-               bg-neutral-50 px-3 py-2 font-mono text-sm focus:outline-none 
-               focus:ring-2 focus:ring-neutral-300 transition-all"
-                      placeholder='Örn: "Sen viral kısa videolar konusunda uzman bir metin yazarı ve stratejistsin."'
-                      value={form.systemPrompt ?? ""}
+                      className="h-20 font-mono text-[11px] leading-tight bg-zinc-950/50 border-zinc-800 resize-none focus:border-indigo-500/50 text-zinc-300"
+                      value={form.systemPrompt}
                       onChange={(e) =>
                         setForm({ ...form, systemPrompt: e.target.value })
                       }
+                      placeholder='Örn: "Sen profesyonel bir senaristsin..."'
                     />
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Modelin davranışını tanımlar. (örnek: "Sen YouTube Shorts
-                      konusunda uzman bir içerik üreticisisin.")
-                    </p>
-                  </Field>
+                  </div>
 
-                  {/* ✍️ Prompt İçeriği */}
-                  <Field
-                    label="Prompt İçeriği"
-                    className="flex flex-col flex-1"
-                  >
+                  {/* 🔥 FLEX-1 İLE KALAN ALANI DOLDURAN KISIM */}
+                  <div className="flex flex-col flex-1 min-h-[200px]">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <Label>
+                        Prompt İçeriği{" "}
+                        <span className="text-indigo-400">*</span>
+                      </Label>
+                      <button
+                        onClick={() =>
+                          setPreviewModal({
+                            title: "Prompt İçeriği",
+                            content: form.body,
+                          })
+                        }
+                        className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                      >
+                        <Maximize2 size={12} /> Genişlet
+                      </button>
+                    </div>
                     <Textarea
-                      className="min-h-[200px] flex-1 resize-none overflow-auto border border-neutral-300 rounded-xl 
-               bg-neutral-50 px-3 py-2 font-mono text-sm focus:outline-none 
-               focus:ring-2 focus:ring-neutral-300 transition-all"
-                      placeholder="Kullanıcı girdisini işlemek için asıl prompt içeriğini buraya yazın…"
+                      // 🔥 h-full ve resize-none sayesinde kapsayıcıyı (flex-1) doldurur
+                      className="flex-1 h-full w-full font-mono text-xs bg-zinc-950/50 border-zinc-800 focus:ring-indigo-500/20 focus:border-indigo-500 text-zinc-200 resize-none p-3"
                       value={form.body}
                       onChange={(e) =>
                         setForm({ ...form, body: e.target.value })
                       }
+                      placeholder="Kullanıcıdan gelen input buraya nasıl işlenecek..."
                     />
-                  </Field>
+                  </div>
                 </>
               )}
-            </CardBody>
+            </div>
 
-            <CardFooter className="shrink-0 sticky bottom-0 bg-white border-t">
-              <div className="flex justify-end gap-2">
-                <Button onClick={resetForm} disabled={detailLoading}>
-                  Yeni
-                </Button>
+            {/* Footer Buttons */}
+            <div className="p-4 border-t border-zinc-800/50 bg-zinc-900/80 backdrop-blur flex items-center justify-end gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                onClick={handleNew}
+                className="text-zinc-400 hover:text-white h-9 px-3 text-xs"
+              >
+                Vazgeç
+              </Button>
+              {selectedId && (
                 <Button
                   variant="danger"
-                  onClick={onDelete}
-                  disabled={!selectedId || detailLoading}
+                  size="sm"
+                  onClick={handleDeleteClick}
+                  isLoading={detailLoading}
+                  className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 h-9 px-3 text-xs"
                 >
-                  Sil
+                  <Trash2 size={14} className="mr-1.5" /> Sil
                 </Button>
-                <Button
-                  variant="primary"
-                  onClick={onSave}
-                  disabled={detailLoading}
-                >
-                  Kaydet
-                </Button>
-              </div>
-            </CardFooter>
+              )}
+              <Button
+                variant="primary"
+                onClick={handleSave}
+                isLoading={detailLoading}
+                className="shadow-lg shadow-indigo-600/20 bg-indigo-600 hover:bg-indigo-500 text-white border-none h-9 px-4 text-xs"
+              >
+                <Save size={14} className="mr-1.5" />{" "}
+                {selectedId ? "Kaydet" : "Oluştur"}
+              </Button>
+            </div>
           </Card>
-        </section>
+        </div>
       </div>
+
+      {/* SİLME MODALI */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Prompt Silinsin mi?"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-zinc-300">
+            <b>#{selectedId}</b> numaralı kayıt kalıcı olarak silinecektir.
+          </p>
+          <div className="flex justify-end gap-3 mt-2">
+            <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
+              İptal
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDelete}
+              isLoading={detailLoading}
+            >
+              Evet, Sil
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* İÇERİK MODALI */}
+      <Modal
+        isOpen={!!previewModal}
+        onClose={() => setPreviewModal(null)}
+        title={previewModal?.title}
+        maxWidth="4xl"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="relative group">
+            <div
+              className="
+                w-full h-[60vh] p-6 bg-zinc-950 border border-zinc-800 rounded-xl 
+                font-mono text-sm text-zinc-300 overflow-y-auto overflow-x-hidden 
+                whitespace-pre-wrap break-words leading-relaxed shadow-inner selection:bg-indigo-500/30
+            "
+            >
+              {previewModal?.content}
+            </div>
+            <button
+              onClick={() => copyToClipboard(previewModal?.content || "")}
+              className="absolute top-4 right-4 p-2 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-lg transition-all border border-zinc-700 opacity-50 group-hover:opacity-100 backdrop-blur-sm"
+              title="Panoya Kopyala"
+            >
+              <Copy size={16} />
+            </button>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => setPreviewModal(null)}
+              className="min-w-[100px]"
+            >
+              Kapat
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Page>
   );
-}
-
-function useDebouncedValue<T>(value: T, delay = 300) {
-  const [debounced, setDebounced] = useState(value);
-  const t = useRef<number | null>(null);
-  useEffect(() => {
-    if (t.current) window.clearTimeout(t.current);
-    t.current = window.setTimeout(() => setDebounced(value), delay);
-    return () => {
-      if (t.current) window.clearTimeout(t.current);
-    };
-  }, [value, delay]);
-  return debounced;
 }

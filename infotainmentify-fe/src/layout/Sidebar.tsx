@@ -1,22 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import {
-  Home,
-  FileText,
-  Sparkles,
-  Settings,
-  ListChecks,
-  Cpu,
-  ChevronDown,
-  ChevronRight,
-  Shield,
-  BookIcon,
-  AwardIcon,
-  VideoIcon,
-  CastIcon,
-  FilmIcon,
-  LayersIcon,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, X, LogOut } from "lucide-react";
+import { cn } from "../components/ui-kit"; // veya senin path: "../components/ui-kit"
+import { MENU_CONFIG } from "../config/menu";
 
 type Props = {
   collapsed: boolean;
@@ -25,295 +11,187 @@ type Props = {
   setMobileOpen: (v: boolean) => void;
 };
 
-type LinkProps = {
-  to: string;
-  label: string;
-  collapsed: boolean;
-  icon: React.ElementType;
-};
-
 export default function Sidebar({
   collapsed,
   setCollapsed,
   mobileOpen,
   setMobileOpen,
 }: Props) {
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    genel: true,
-    icerik: true,
-    video: true,
-    gorevler: true,
-    ayarlar: true,
-  });
+  // Başlangıçta tüm gruplar açık olsun
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    MENU_CONFIG.reduce((acc, curr) => ({ ...acc, [curr.key]: true }), {})
+  );
 
-  const toggle = (key: string) =>
-    setOpenGroups((s) => ({ ...s, [key]: !s[key] }));
+  const toggleGroup = (key: string) => {
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Mobile Overlay */}
       <div
-        className={`fixed inset-0 bg-black/30 z-40 lg:hidden transition-opacity ${
+        className={cn(
+          "fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity lg:hidden",
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
+        )}
         onClick={() => setMobileOpen(false)}
       />
 
+      {/* Sidebar Container */}
       <aside
-        className={`
-          z-50 bg-white border-r border-neutral-200 h-full flex flex-col
-          transition-all duration-200 overflow-x-hidden box-border
-          ${collapsed ? "w-[72px]" : "w-[240px]"}
-          fixed lg:static left-0 top-0
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        `}
+        className={cn(
+          "fixed top-0 left-0 z-50 flex h-full flex-col border-r border-zinc-800 bg-zinc-950 transition-all duration-300 lg:static",
+          collapsed ? "w-[72px]" : "w-[260px]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
       >
-        {/* Header */}
-        <div className="h-14 flex items-center px-3 border-b border-neutral-200">
-          <img
-            src="/logo.png"
-            alt="Infotainmentify"
-            className="h-7 w-7 mr-2 rounded-lg object-contain"
-          />
-          {!collapsed && (
-            <div className="font-medium text-neutral-800 truncate">
-              Infotainmentify
+        {/* Header (Logo) */}
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800 px-4">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 font-bold text-lg">
+              I
             </div>
-          )}
+            {!collapsed && (
+              <span className="font-bold tracking-tight text-zinc-100 text-base whitespace-nowrap">
+                Infotainmentify
+              </span>
+            )}
+          </div>
+
+          {/* Desktop Toggle */}
           <button
-            type="button"
-            className="ml-auto px-2 py-1 rounded-lg border border-neutral-300 text-xs hover:bg-neutral-100"
             onClick={() => setCollapsed(!collapsed)}
+            className="hidden lg:flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
           >
-            {collapsed ? ">" : "<"}
+            {collapsed ? (
+              <ChevronRight size={14} />
+            ) : (
+              <ChevronDown size={14} className="rotate-90" />
+            )}
+          </button>
+
+          {/* Mobile Close */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden text-zinc-400 hover:text-white"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        {/* Menu */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-          {/* GENEL */}
-          <SidebarGroupHeader
-            onClick={() => toggle("genel")}
-            collapsed={collapsed}
-            open={openGroups.genel}
-            title="GENEL"
-            icon={Home}
-          />
-          {openGroups.genel && (
-            <SidebarSubList collapsed={collapsed}>
-              <SidebarLink
-                to="/dashboard"
-                icon={Home}
-                collapsed={collapsed}
-                label="Kontrol Paneli"
-              />
-            </SidebarSubList>
-          )}
+        {/* Scrollable Menu Area */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">
+          {MENU_CONFIG.map((group) => {
+            const isOpen = openGroups[group.key];
 
-          {/* İÇERİK YÖNETİMİ */}
-          <SidebarGroupHeader
-            onClick={() => toggle("icerik")}
-            collapsed={collapsed}
-            open={openGroups.icerik}
-            title="İÇERİK YÖNETİMİ"
-            icon={FileText}
-          />
-          {openGroups.icerik && (
-            <SidebarSubList collapsed={collapsed}>
-              <SidebarLink
-                to="/topics"
-                icon={ListChecks}
-                collapsed={collapsed}
-                label="Konular"
-              />
-              <SidebarLink
-                to="/scripts"
-                icon={BookIcon}
-                collapsed={collapsed}
-                label="Senaryolar"
-              />
-              <SidebarLink
-                to="/prompts"
-                icon={FileText}
-                collapsed={collapsed}
-                label="Promptlar"
-              />
-              <SidebarLink
-                to="/topic-generation-profiles"
-                icon={Sparkles}
-                collapsed={collapsed}
-                label="Konu Üretim Profilleri"
-              />
-              <SidebarLink
-                to="/script-generation-profiles"
-                icon={AwardIcon}
-                collapsed={collapsed}
-                label="Senaryo Üretim Profilleri"
-              />
-            </SidebarSubList>
-          )}
+            return (
+              <div key={group.key} className="flex flex-col">
+                {/* GRUP BAŞLIĞI (Accordion Tetikleyici) */}
+                {!collapsed ? (
+                  <button
+                    onClick={() => toggleGroup(group.key)}
+                    className="group flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-300 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <group.icon
+                        size={14}
+                        className="text-zinc-600 group-hover:text-indigo-400 transition-colors"
+                      />
+                      <span>{group.title}</span>
+                    </div>
+                    <ChevronDown
+                      size={14}
+                      className={cn(
+                        "transition-transform duration-200",
+                        isOpen ? "rotate-180" : ""
+                      )}
+                    />
+                  </button>
+                ) : (
+                  // Collapsed modunda sadece grup ikonu (Seperator gibi durur)
+                  <div
+                    className="flex justify-center py-2 mb-1 border-b border-zinc-800/50 last:border-0"
+                    title={group.title}
+                  >
+                    <group.icon size={16} className="text-zinc-600" />
+                  </div>
+                )}
 
-          {/* VIDEO ÜRETİMİ */}
-          <SidebarGroupHeader
-            onClick={() => toggle("video")}
-            collapsed={collapsed}
-            open={openGroups.video}
-            title="VİDEO ÜRETİMİ"
-            icon={VideoIcon}
-          />
-          {openGroups.video && (
-            <SidebarSubList collapsed={collapsed}>
-              <SidebarLink
-                to="/render-profiles"
-                icon={FilmIcon}
-                collapsed={collapsed}
-                label="Render Profilleri"
-              />
-              <SidebarLink
-                to="/video-generation-profiles"
-                icon={CastIcon}
-                collapsed={collapsed}
-                label="Video Üretim Profilleri"
-              />
-              <SidebarLink
-                to="/auto-video-pipelines"
-                icon={LayersIcon}
-                collapsed={collapsed}
-                label="Üretim Süreçleri"
-              />
-              <SidebarLink
-                to="/auto-video-assets"
-                icon={FilmIcon}
-                collapsed={collapsed}
-                label="Video Materyaller"
-              />
-            </SidebarSubList>
-          )}
-
-          {/* GÖREV YÖNETİMİ */}
-          <SidebarGroupHeader
-            onClick={() => toggle("gorevler")}
-            collapsed={collapsed}
-            open={openGroups.gorevler}
-            title="GÖREV YÖNETİMİ"
-            icon={ListChecks}
-          />
-          {openGroups.gorevler && (
-            <SidebarSubList collapsed={collapsed}>
-              <SidebarLink
-                to="/job-settings"
-                icon={FileText}
-                collapsed={collapsed}
-                label="Görevler"
-              />
-              <SidebarLink
-                to="/job-executions"
-                icon={ListChecks}
-                collapsed={collapsed}
-                label="Görev Günlükleri"
-              />
-            </SidebarSubList>
-          )}
-
-          {/* AYARLAR */}
-          <SidebarGroupHeader
-            onClick={() => toggle("ayarlar")}
-            collapsed={collapsed}
-            open={openGroups.ayarlar}
-            title="AYARLAR"
-            icon={Settings}
-          />
-          {openGroups.ayarlar && (
-            <SidebarSubList collapsed={collapsed}>
-              <SidebarLink
-                to="/social-channels"
-                icon={Settings}
-                collapsed={collapsed}
-                label="Sosyal Medya Tanımları"
-              />
-              <SidebarLink
-                to="/ai-integrations"
-                icon={Cpu}
-                collapsed={collapsed}
-                label="Yapay Zeka Ayarları"
-              />
-              <SidebarLink
-                to="/security"
-                icon={Shield}
-                collapsed={collapsed}
-                label="Güvenlik"
-              />
-            </SidebarSubList>
-          )}
+                {/* ALT MENÜLER (Accordion Body) */}
+                <div
+                  className={cn(
+                    "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out",
+                    // Kapalıysa height 0, Açıksa auto (Collapsed modda her zaman gösteriyoruz ki ikonlara erişilsin)
+                    !isOpen && !collapsed
+                      ? "max-h-0 opacity-0"
+                      : "max-h-[500px] opacity-100",
+                    !collapsed && "mt-1 pl-2" // Açıkken hafif girinti
+                  )}
+                >
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition-all duration-200",
+                          // Collapsed modunda ortala, değilse sola yasla
+                          collapsed ? "justify-center" : "",
+                          isActive
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
+                            : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100"
+                        )
+                      }
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <item.icon
+                        size={18}
+                        className={cn(
+                          "shrink-0 transition-colors"
+                          // Active değilken ikon rengi
+                          // Active ise zaten text-white ile beyaz oluyor
+                        )}
+                      />
+                      {!collapsed && (
+                        <span className="truncate">{item.label}</span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
-        {/* Footer */}
-        <div className="shrink-0 p-2 border-t border-neutral-200 text-xs text-neutral-500">
-          v0.1 • Yerel
+        {/* Footer (User) */}
+        <div className="border-t border-zinc-800 p-3">
+          <div
+            className={cn(
+              "flex items-center gap-3 rounded-xl bg-zinc-900/50 p-2",
+              collapsed && "justify-center bg-transparent p-0"
+            )}
+          >
+            <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white ring-2 ring-zinc-950">
+              ME
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col overflow-hidden">
+                <span className="truncate text-xs font-semibold text-zinc-200">
+                  Barış
+                </span>
+                <span className="truncate text-[10px] text-zinc-500 font-mono">
+                  PRO PLAN
+                </span>
+              </div>
+            )}
+            {!collapsed && (
+              <button className="ml-auto text-zinc-500 hover:text-red-400 transition-colors">
+                <LogOut size={16} />
+              </button>
+            )}
+          </div>
         </div>
       </aside>
     </>
-  );
-}
-
-function SidebarGroupHeader({
-  title,
-  open,
-  collapsed,
-  onClick,
-  icon: Icon,
-}: any) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full flex items-center gap-2 px-2 py-2 rounded-lg bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200 select-none"
-    >
-      <span className="inline-flex items-center justify-center h-4 w-4">
-        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-      </span>
-      {!collapsed && (
-        <>
-          <Icon size={15} className="text-neutral-500" />
-          <span className="text-[11px] tracking-wider uppercase text-neutral-600 font-medium">
-            {title}
-          </span>
-        </>
-      )}
-    </button>
-  );
-}
-
-function SidebarSubList({ children, collapsed }: any) {
-  return (
-    <div
-      className={`mt-1 mb-2 ${
-        collapsed ? "" : "pl-3 border-l border-neutral-200/70"
-      }`}
-    >
-      <div className="flex flex-col gap-1">{children}</div>
-    </div>
-  );
-}
-
-function SidebarLink({ to, label, collapsed, icon: Icon }: LinkProps) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        [
-          "group flex items-center gap-2 w-full px-3 py-2 rounded-xl hover:bg-neutral-100 text-neutral-700",
-          isActive
-            ? "bg-neutral-100 font-medium relative before:content-[''] before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-neutral-900"
-            : "",
-        ].join(" ")
-      }
-    >
-      <Icon
-        size={18}
-        className="text-neutral-500 group-hover:text-neutral-700 transition-colors"
-      />
-      {!collapsed && <span className="text-sm truncate">{label}</span>}
-    </NavLink>
   );
 }

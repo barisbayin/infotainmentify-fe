@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
-import { topicsApi, type TopicListDto, type SaveTopicDto } from "../api/topics";
+import {
+  imagePresetsApi,
+  type ImagePresetListDto,
+  type SaveImagePresetDto,
+} from "../api/imagePresets";
+import { aiConnectionsApi } from "../api/aiConnections";
 import toast from "react-hot-toast";
 import {
   Page,
@@ -16,6 +21,8 @@ import {
   TH,
   TD,
   Modal,
+  Select,
+  NumberInput,
 } from "../components/ui-kit";
 import {
   Plus,
@@ -23,80 +30,94 @@ import {
   Save,
   Search,
   RefreshCw,
-  X,
-  Lightbulb,
+  Image as ImageIcon,
   Maximize2,
   Copy,
-  Zap,
+  RectangleVertical,
+  RectangleHorizontal,
+  Square,
+  Palette,
 } from "lucide-react";
 
-// Varsayılan Form
-const EMPTY_FORM: SaveTopicDto = {
-  title: "",
-  premise: "",
-  languageCode: "tr-TR",
-  category: "",
-  subCategory: "",
-  series: "",
-  tone: "",
-  renderStyle: "",
-  visualPromptHint: "",
-  tagsJson: "",
+const EMPTY_FORM: SaveImagePresetDto = {
+  name: "",
+  userAiConnectionId: 0,
+  modelName: "dall-e-3",
+  size: "1024x1792",
+  quality: "standard",
+  artStyle: "",
+  imageCountPerScene: 1,
+  promptTemplate: "",
+  negativePrompt: "",
 };
 
-export default function TopicsPage() {
-  // --- STATE ---
-  const [items, setItems] = useState<TopicListDto[]>([]);
+// Görsel Oran Seçenekleri
+const ASPECT_RATIOS = [
+  { value: "1024x1792", label: "Shorts (9:16)", icon: RectangleVertical },
+  { value: "1024x1024", label: "Kare (1:1)", icon: Square },
+  { value: "1792x1024", label: "Yatay (16:9)", icon: RectangleHorizontal },
+];
+
+export default function ImagePresetsPage() {
+  const [items, setItems] = useState<ImagePresetListDto[]>([]);
+  const [connections, setConnections] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [form, setForm] = useState<SaveTopicDto>(EMPTY_FORM);
+  const [form, setForm] = useState<SaveImagePresetDto>(EMPTY_FORM);
 
-  // Modals
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [previewModal, setPreviewModal] = useState<{
     title: string;
     content: string;
   } | null>(null);
 
-  // --- ACTIONS ---
-  const loadList = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await topicsApi.list(debouncedSearch);
-      setItems(data);
+      const [presetsData, connectionsData] = await Promise.all([
+        imagePresetsApi.list(),
+        aiConnectionsApi.list(),
+      ]);
+      setItems(presetsData);
+      setConnections(
+        connectionsData.map((c) => ({
+          label: `${c.name} (${c.provider})`,
+          value: c.id.toString(),
+        }))
+      );
     } catch {
-      toast.error("Liste yüklenemedi");
+      toast.error("Veriler yüklenemedi");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+    loadData();
+  }, []);
 
   const handleSelect = async (id: number) => {
     if (id === selectedId) return;
     setSelectedId(id);
     setDetailLoading(true);
     try {
-      const data = await topicsApi.get(id);
+      const data = await imagePresetsApi.get(id);
       setForm({
-        title: data.title,
-        premise: data.premise,
-        languageCode: data.languageCode ?? "tr-TR",
-        category: data.category ?? "",
-        subCategory: data.subCategory ?? "",
-        series: data.series ?? "",
-        tone: data.tone ?? "",
-        renderStyle: data.renderStyle ?? "",
-        visualPromptHint: data.visualPromptHint ?? "",
-        tagsJson: data.tagsJson ?? "",
+        name: data.name,
+        userAiConnectionId: data.userAiConnectionId,
+        modelName: data.modelName,
+        size: data.size,
+        quality: data.quality,
+        artStyle: data.artStyle ?? "",
+        imageCountPerScene: data.imageCountPerScene,
+        promptTemplate: data.promptTemplate,
+        negativePrompt: data.negativePrompt ?? "",
       });
     } catch {
       toast.error("Detay yüklenemedi.");
@@ -111,22 +132,27 @@ export default function TopicsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.premise.trim()) {
-      toast.error("Başlık ve Ana Fikir zorunludur.");
+    if (!form.name.trim() || !form.promptTemplate.trim()) {
+      toast.error("Ad ve Prompt Şablonu zorunludur.");
+      return;
+    }
+    if (!form.userAiConnectionId) {
+      toast.error("Lütfen bir AI Bağlantısı seçin.");
       return;
     }
 
     setDetailLoading(true);
     try {
       if (selectedId) {
-        await topicsApi.update(selectedId, form);
+        await imagePresetsApi.update(selectedId, form);
         toast.success("Güncellendi.");
       } else {
-        await topicsApi.create(form);
-        toast.success("Fikir oluşturuldu.");
+        await imagePresetsApi.create(form);
+        toast.success("Oluşturuldu.");
         handleNew();
       }
-      loadList();
+      const list = await imagePresetsApi.list();
+      setItems(list);
     } catch {
       toast.error("Kayıt başarısız.");
     } finally {
@@ -138,11 +164,12 @@ export default function TopicsPage() {
     if (!selectedId) return;
     setDetailLoading(true);
     try {
-      await topicsApi.delete(selectedId);
+      await imagePresetsApi.delete(selectedId);
       toast.success("Silindi.");
       setIsDeleteModalOpen(false);
       handleNew();
-      loadList();
+      const list = await imagePresetsApi.list();
+      setItems(list);
     } catch {
       toast.error("Silme başarısız.");
     } finally {
@@ -155,38 +182,33 @@ export default function TopicsPage() {
     toast.success("Kopyalandı!");
   };
 
+  const filteredItems = items.filter((i) =>
+    i.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
+
   return (
     <Page>
-      {/* ANA GRID (8-4 Düzeni) */}
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
         {/* SOL: LİSTE (8 BİRİM) */}
         <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
           <div className="flex justify-between items-center gap-2 shrink-0">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Zap className="text-indigo-500" /> Fikir Havuzu
+              <ImageIcon className="text-indigo-500" /> Görsel Ayarları
             </h1>
+            <div className="flex gap-2 relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <Input
+                placeholder="Preset ara..."
+                className="pl-9 bg-zinc-900/50 border-zinc-800"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
             <div className="flex gap-2">
-              <div className="relative w-64 group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
-                <Input
-                  placeholder="Fikirlerde ara..."
-                  className="pl-9 bg-zinc-900/50 border-zinc-800"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={loadList}
+                onClick={loadData}
                 className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
               >
                 <RefreshCw
@@ -198,7 +220,7 @@ export default function TopicsPage() {
                 onClick={handleNew}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg px-4"
               >
-                <Plus size={18} className="mr-2" /> Yeni Fikir
+                <Plus size={18} className="mr-2" /> Yeni Ayar
               </Button>
             </div>
           </div>
@@ -208,18 +230,16 @@ export default function TopicsPage() {
               <Table className="border-none w-full">
                 <THead>
                   <TR className="bg-zinc-900/80 sticky top-0 z-10 backdrop-blur-md">
-                    <TH className="text-zinc-400 font-medium">Başlık</TH>
-                    <TH className="text-zinc-400 font-medium">Kategori</TH>
-                    <TH className="text-zinc-400 font-medium hidden md:table-cell">
-                      Ana Fikir (Özet)
-                    </TH>
+                    <TH className="text-zinc-400 font-medium">Preset Adı</TH>
+                    <TH className="text-zinc-400 font-medium">Model</TH>
+                    <TH className="text-zinc-400 font-medium">Boyut</TH>
                     <TH className="text-zinc-400 font-medium text-right">
-                      Tarih
+                      Güncelleme
                     </TH>
                   </TR>
                 </THead>
                 <tbody>
-                  {items.map((item) => (
+                  {filteredItems.map((item) => (
                     <TR
                       key={item.id}
                       onClick={() => handleSelect(item.id)}
@@ -231,33 +251,26 @@ export default function TopicsPage() {
                         }`}
                     >
                       <TD className="font-medium text-zinc-200 py-3">
-                        {item.title}
+                        {item.name}
                       </TD>
-                      <TD className="text-zinc-400 py-3">
-                        {item.category ? (
-                          <Badge variant="neutral" className="scale-90">
-                            {item.category}
-                          </Badge>
-                        ) : (
-                          "-"
-                        )}
-                      </TD>
-                      <TD className="text-zinc-500 text-xs py-3 hidden md:table-cell max-w-xs truncate">
-                        {item.premise}
+                      <TD className="text-zinc-400 py-3">{item.modelName}</TD>
+                      <TD className="text-zinc-400 py-3 text-xs font-mono">
+                        {item.size}
                       </TD>
                       <TD className="text-right text-zinc-500 text-xs py-3 font-mono">
-                        {new Date(item.createdAt).toLocaleDateString("tr-TR")}
+                        {item.updatedAt
+                          ? new Date(item.updatedAt).toLocaleDateString("tr-TR")
+                          : "-"}
                       </TD>
                     </TR>
                   ))}
-                  {items.length === 0 && !loading && (
+                  {filteredItems.length === 0 && !loading && (
                     <TR>
                       <TD
                         colSpan={4}
-                        className="text-center py-12 text-zinc-500 flex flex-col items-center justify-center gap-2"
+                        className="text-center py-12 text-zinc-500"
                       >
-                        <Lightbulb size={24} className="opacity-50" />
-                        <span>Henüz bir fikir yok.</span>
+                        Kayıt bulunamadı.
                       </TD>
                     </TR>
                   )}
@@ -265,7 +278,7 @@ export default function TopicsPage() {
               </Table>
             </div>
             <div className="p-2 border-t border-zinc-800 bg-zinc-900/50 text-xs text-zinc-500 text-center shrink-0">
-              Toplam {items.length} fikir
+              Toplam {filteredItems.length} kayıt
             </div>
           </Card>
         </div>
@@ -273,7 +286,6 @@ export default function TopicsPage() {
         {/* === SAĞ: FORM (4 BİRİM) === */}
         <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-0">
           <Card className="h-full flex flex-col overflow-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0">
-            {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-zinc-800/50 shrink-0 bg-zinc-900/30">
               <div className="flex items-center gap-2">
                 <div
@@ -282,7 +294,7 @@ export default function TopicsPage() {
                   }`}
                 />
                 <h2 className="text-md font-bold text-white tracking-tight">
-                  {selectedId ? "Fikri Düzenle" : "Yeni Fikir"}
+                  {selectedId ? "Görsel Ayarları" : "Yeni Ayar"}
                 </h2>
               </div>
               {selectedId && (
@@ -292,7 +304,6 @@ export default function TopicsPage() {
               )}
             </div>
 
-            {/* Form Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin scrollbar-thumb-zinc-700">
               {detailLoading ? (
                 <div className="flex h-full items-center justify-center text-zinc-500 gap-2">
@@ -300,58 +311,120 @@ export default function TopicsPage() {
                 </div>
               ) : (
                 <>
-                  {/* Başlık & Dil */}
+                  {/* İsim ve Connection */}
                   <div className="space-y-4">
                     <div>
                       <Label className="mb-1.5">
-                        Fikir Başlığı <span className="text-indigo-400">*</span>
+                        Preset Adı <span className="text-indigo-400">*</span>
                       </Label>
                       <Input
-                        value={form.title}
+                        value={form.name}
                         onChange={(e) =>
-                          setForm({ ...form, title: e.target.value })
+                          setForm({ ...form, name: e.target.value })
                         }
-                        placeholder="Örn: Kedilerin Mırlama Sırrı"
-                        className="focus:border-indigo-500 bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                        className="bg-zinc-950/50 border-zinc-800 h-9 text-sm focus:border-indigo-500"
+                        placeholder="Örn: Cinematic Shorts"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="mb-1.5">Kategori</Label>
-                        <Input
-                          value={form.category}
-                          onChange={(e) =>
-                            setForm({ ...form, category: e.target.value })
-                          }
-                          placeholder="Bilim"
-                          className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="mb-1.5">Dil</Label>
-                        <Input
-                          value={form.languageCode}
-                          onChange={(e) =>
-                            setForm({ ...form, languageCode: e.target.value })
-                          }
-                          className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
-                        />
-                      </div>
+                    <div>
+                      <Label className="mb-1.5">
+                        AI Bağlantısı <span className="text-indigo-400">*</span>
+                      </Label>
+                      <Select
+                        value={form.userAiConnectionId.toString()}
+                        onChange={(val) =>
+                          setForm({ ...form, userAiConnectionId: Number(val) })
+                        }
+                        options={connections}
+                        placeholder="Bağlantı Seçiniz..."
+                      />
                     </div>
                   </div>
 
-                  {/* Ana Fikir (Expandable) */}
-                  <div className="flex flex-col flex-1 min-h-[150px]">
+                  {/* Model ve Stil */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="mb-1.5">Model</Label>
+                      <Input
+                        value={form.modelName}
+                        onChange={(e) =>
+                          setForm({ ...form, modelName: e.target.value })
+                        }
+                        className="bg-zinc-950/50 border-zinc-800 h-9 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-1.5">Kalite</Label>
+                      <Select
+                        value={form.quality}
+                        onChange={(val) => setForm({ ...form, quality: val })}
+                        options={[
+                          { value: "standard", label: "Standard" },
+                          { value: "hd", label: "HD" },
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="mb-1.5 flex items-center gap-1">
+                      <Palette size={12} /> Sanat Tarzı
+                    </Label>
+                    <Input
+                      value={form.artStyle}
+                      onChange={(e) =>
+                        setForm({ ...form, artStyle: e.target.value })
+                      }
+                      className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                      placeholder="Örn: Cyberpunk, Oil Painting, Photorealistic..."
+                    />
+                  </div>
+
+                  {/* 🔥 VISUAL ASPECT RATIO SELECTOR */}
+                  <div>
+                    <Label className="mb-2">En-Boy Oranı (Çözünürlük)</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {ASPECT_RATIOS.map((ratio) => {
+                        const isSelected = form.size === ratio.value;
+                        return (
+                          <div
+                            key={ratio.value}
+                            onClick={() =>
+                              setForm({ ...form, size: ratio.value })
+                            }
+                            className={`cursor-pointer flex flex-col items-center justify-center gap-2 p-2 rounded-xl border transition-all ${
+                              isSelected
+                                ? "bg-indigo-500/10 border-indigo-500 text-indigo-400"
+                                : "bg-zinc-950/30 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                            }`}
+                          >
+                            <ratio.icon
+                              size={20}
+                              className={
+                                isSelected ? "text-indigo-500" : "text-zinc-500"
+                              }
+                            />
+                            <span className="text-[10px] font-medium text-center leading-tight">
+                              {ratio.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Prompt Template (Flex-1) */}
+                  <div className="flex flex-col flex-1 min-h-[200px]">
                     <div className="flex justify-between items-center mb-1.5">
                       <Label>
-                        Ana Fikir (Premise){" "}
+                        Görsel Prompt Şablonu{" "}
                         <span className="text-indigo-400">*</span>
                       </Label>
                       <button
                         onClick={() =>
                           setPreviewModal({
-                            title: "Ana Fikir",
-                            content: form.premise,
+                            title: "Prompt Şablonu",
+                            content: form.promptTemplate,
                           })
                         }
                         className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -360,69 +433,25 @@ export default function TopicsPage() {
                       </button>
                     </div>
                     <Textarea
-                      className="flex-1 h-32 font-mono text-xs bg-zinc-950/50 border-zinc-800 focus:ring-indigo-500/20 focus:border-indigo-500 text-zinc-200 resize-none p-3"
-                      value={form.premise}
+                      className="flex-1 h-full w-full font-mono text-xs bg-zinc-950/50 border-zinc-800 focus:ring-indigo-500/20 focus:border-indigo-500 text-zinc-200 resize-none p-3"
+                      value={form.promptTemplate}
                       onChange={(e) =>
-                        setForm({ ...form, premise: e.target.value })
+                        setForm({ ...form, promptTemplate: e.target.value })
                       }
-                      placeholder="Videonun temel konusu ne olacak? Detaylı açıklama..."
+                      placeholder="Örn: {SceneDescription}, {ArtStyle}, highly detailed, 8k..."
                     />
                   </div>
 
-                  {/* Detaylar (Grid) */}
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800/50">
-                    <div>
-                      <Label className="mb-1.5">Alt Kategori</Label>
-                      <Input
-                        value={form.subCategory}
-                        onChange={(e) =>
-                          setForm({ ...form, subCategory: e.target.value })
-                        }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-1.5">Seri Adı</Label>
-                      <Input
-                        value={form.series}
-                        onChange={(e) =>
-                          setForm({ ...form, series: e.target.value })
-                        }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-1.5">Ton (Tone)</Label>
-                      <Input
-                        value={form.tone}
-                        onChange={(e) =>
-                          setForm({ ...form, tone: e.target.value })
-                        }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-1.5">Görsel Stil</Label>
-                      <Input
-                        value={form.renderStyle}
-                        onChange={(e) =>
-                          setForm({ ...form, renderStyle: e.target.value })
-                        }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Visual Prompt Hint */}
+                  {/* Negative Prompt */}
                   <div>
-                    <Label className="mb-1.5">Görsel İpucu (AI Hint)</Label>
+                    <Label className="mb-1.5">Negatif Prompt</Label>
                     <Textarea
-                      className="h-16 font-mono text-xs bg-zinc-950/50 border-zinc-800 resize-none"
-                      value={form.visualPromptHint}
+                      className="h-16 font-mono text-xs bg-zinc-950/50 border-zinc-800 resize-none focus:border-indigo-500/50 text-zinc-300"
+                      value={form.negativePrompt}
                       onChange={(e) =>
-                        setForm({ ...form, visualPromptHint: e.target.value })
+                        setForm({ ...form, negativePrompt: e.target.value })
                       }
-                      placeholder="AI görsel üretirken neye dikkat etsin?"
+                      placeholder="Örn: ugly, deformed, watermark, text..."
                     />
                   </div>
                 </>
@@ -463,15 +492,15 @@ export default function TopicsPage() {
         </div>
       </div>
 
-      {/* Silme Modalı */}
+      {/* Modals */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Fikir Silinsin mi?"
+        title="Silinsin mi?"
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-zinc-300">
-            <b>"{form.title}"</b> başlıklı fikir silinecek.
+            <b>"{form.name}"</b> preseti silinecek.
           </p>
           <div className="flex justify-end gap-3 mt-2">
             <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
@@ -488,7 +517,6 @@ export default function TopicsPage() {
         </div>
       </Modal>
 
-      {/* Focus Mode Modalı */}
       <Modal
         isOpen={!!previewModal}
         onClose={() => setPreviewModal(null)}

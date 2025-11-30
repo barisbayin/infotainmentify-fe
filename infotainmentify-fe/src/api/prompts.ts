@@ -1,14 +1,37 @@
-import { http } from "./http";
-import type { Prompt } from "./types";
+import { http } from "./http"; // Veya senin http dosyan neredeyse
 
-export type PromptDetailDto = Omit<Prompt, "createdAt" | "updatedAt"> & { id: number };
+// Backend DTO'larına karşılık gelen Tipler
+export type PromptListDto = {
+    id: number;
+    name: string;
+    description?: string;
+    category?: string;
+    language?: string;
+    isActive: boolean;
+    updatedAt?: string;
+};
 
-function savePrompt(dto: PromptDetailDto) {
-    return http<{ id: number }>(`/api/prompts/save`, {
-        method: "POST",
-        body: JSON.stringify(dto),
-    });
-}
+export type PromptDetailDto = {
+    id: number;
+    name: string;
+    category?: string;
+    language?: string;
+    description?: string;
+    isActive: boolean;
+    body: string;
+    systemPrompt?: string;
+    createdAt: string;
+};
+
+export type SavePromptDto = {
+    name: string;
+    category?: string;
+    language?: string;
+    description?: string;
+    isActive: boolean;
+    body: string;
+    systemPrompt?: string;
+};
 
 export const promptsApi = {
     list(q?: string, category?: string, active?: boolean) {
@@ -16,18 +39,27 @@ export const promptsApi = {
         if (q) p.set("q", q);
         if (category) p.set("category", category);
         if (active !== undefined) p.set("active", String(active));
-        p.set("_ts", String(Date.now()));
-        return http<Prompt[]>(`/api/prompts?${p.toString()}`);
+        return http<PromptListDto[]>(`/api/prompts?${p.toString()}`);
     },
+
     get(id: number) {
-        return http<Prompt>(`/api/prompts/${id}`);
+        return http<PromptDetailDto>(`/api/prompts/${id}`);
     },
-    create(dto: Omit<Prompt, "id">) {
-        return savePrompt({ id: 0, ...dto });
+
+    create(dto: SavePromptDto) {
+        return http<{ id: number; message: string }>("/api/prompts", {
+            method: "POST",
+            body: JSON.stringify(dto),
+        });
     },
-    update(id: number, dto: Omit<Prompt, "id">) {
-        return savePrompt({ id, ...dto }).then(() => undefined);
+
+    update(id: number, dto: SavePromptDto) {
+        return http<void>(`/api/prompts/${id}`, {
+            method: "PUT", // Backend'de PUT yaptık
+            body: JSON.stringify(dto),
+        });
     },
+
     delete(id: number) {
         return http<void>(`/api/prompts/${id}`, { method: "DELETE" });
     },

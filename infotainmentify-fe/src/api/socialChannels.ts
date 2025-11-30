@@ -1,66 +1,68 @@
 import { http } from "./http";
 
-// -------------------------
-// DTO Tipleri
-// -------------------------
-export type SocialChannelType =
-    | "YouTube"
-    | "Instagram"
-    | "TikTok"
-    | "Twitter"
-    | "Other";
-
-export interface UserSocialChannelListDto {
+export type SocialChannelListDto = {
     id: number;
-    channelType: SocialChannelType;
     channelName: string;
-    channelHandle?: string | null;
-    channelUrl?: string | null;
-}
+    platform: string; // "YouTube", "Instagram" vs.
+    channelUrl?: string;
+    createdAt: string;
+};
 
-export interface UserSocialChannelDetailDto {
+export type SocialChannelDetailDto = {
     id: number;
-    channelType: SocialChannelType;
     channelName: string;
-    channelHandle?: string | null;
-    channelUrl?: string | null;
-    platformChannelId?: string | null;
-    tokens?: Record<string, any> | null;
-    tokenExpiresAt?: Date | null;
-    scopes?: string | null;
-}
+    platform: string;
+    channelHandle?: string;
+    channelUrl?: string;
+    platformChannelId?: string;
+    isTokenExpired: boolean;
+    tokenExpiresAt?: string;
+    scopes?: string;
+};
 
-// -------------------------
-// Ana API Nesnesi
-// -------------------------
+export type SaveSocialChannelDto = {
+    channelType: number; // Enum ID (1=YouTube, 2=Instagram...)
+    channelName: string;
+    channelHandle?: string;
+    channelUrl?: string;
+    platformChannelId?: string;
+    rawTokensJson?: string; // JSON string (access_token vs.)
+    scopes?: string;
+};
+
+// Enum Mapping (Backend Core.Enums.SocialChannelType ile uyumlu olmalı)
+export const PLATFORMS = [
+    { id: 1, label: "YouTube", color: "text-red-500", bg: "bg-red-500/10 border-red-500/20" },
+    { id: 2, label: "Instagram", color: "text-pink-500", bg: "bg-pink-500/10 border-pink-500/20" },
+    { id: 3, label: "TikTok", color: "text-zinc-200", bg: "bg-zinc-800 border-zinc-700" },
+    { id: 4, label: "Facebook", color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/20" },
+    { id: 5, label: "Twitter (X)", color: "text-sky-500", bg: "bg-sky-500/10 border-sky-500/20" },
+    { id: 6, label: "LinkedIn", color: "text-blue-600", bg: "bg-blue-600/10 border-blue-600/20" },
+];
+
 export const socialChannelsApi = {
-    // Listeleme
     list() {
-        return http<UserSocialChannelListDto[]>("/api/social-channels");
+        return http<SocialChannelListDto[]>("/api/social-channels");
     },
 
-    // Detay
     get(id: number) {
-        return http<UserSocialChannelDetailDto>(`/api/social-channels/${id}`);
+        return http<SocialChannelDetailDto>(`/api/social-channels/${id}`);
     },
 
-    // Yeni oluştur
-    create(dto: Omit<UserSocialChannelDetailDto, "id">) {
-        return http<{ id: number }>("/api/social-channels", {
+    create(dto: SaveSocialChannelDto) {
+        return http<{ id: number }>(`/api/social-channels`, {
             method: "POST",
             body: JSON.stringify(dto),
         });
     },
 
-    // Güncelle
-    update(id: number, dto: Omit<UserSocialChannelDetailDto, "id">) {
+    update(id: number, dto: SaveSocialChannelDto) {
         return http<void>(`/api/social-channels/${id}`, {
             method: "PUT",
             body: JSON.stringify(dto),
         });
     },
 
-    // Sil
     delete(id: number) {
         return http<void>(`/api/social-channels/${id}`, { method: "DELETE" });
     },

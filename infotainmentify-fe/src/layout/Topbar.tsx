@@ -1,105 +1,45 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import ChangePasswordModal from "../components/ChangePasswordModal";
-import { useAuth } from "../context/AuthProvider";
-import SignalRStatusBadge from "../components/SignalRStatusBadge";
+import { Search, Menu, Bell, User } from "lucide-react";
+import { cn } from "../components/ui-kit";
 
-type Props = { onOpenMobile: () => void };
-
-export default function Topbar({ onOpenMobile }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [pwdOpen, setPwdOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const navigate = useNavigate();
-  const { logout } = useAuth();
-
-  // dışarı tıklayınca menü kapanır
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    if (menuOpen) document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [menuOpen]);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
+export default function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   return (
-    <div className="w-full px-3">
-      <div className="flex items-center justify-between">
-        {/* Sol taraf */}
-        <div className="flex items-center gap-2">
-          <button
-            className="lg:hidden px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-100"
-            onClick={onOpenMobile}
-          >
-            ☰
-          </button>
-          <div className="text-sm text-neutral-500">Overview</div>
-        </div>
+    <div className="flex w-full items-center justify-between px-6">
+      {/* Sol: Mobile Trigger */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onOpenMobile}
+          className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white lg:hidden transition-colors"
+        >
+          <Menu size={24} />
+        </button>
 
-        {/* Sağ taraf */}
-        <div className="flex items-center gap-3">
-          {/* 🔌 SignalR Durumu */}
-          <SignalRStatusBadge />
-
-          {/* Arama kutusu */}
+        {/* Search Bar */}
+        <div className="relative hidden md:block group">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
           <input
-            className="hidden md:block px-3 py-2 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            placeholder="Ara…"
+            className="h-10 w-72 rounded-xl border border-zinc-800 bg-zinc-900/50 pl-10 pr-4 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/50 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            placeholder="Ara (Topic, Script...)"
           />
-
-          {/* Logo */}
-          <img
-            src="/logo.png"
-            alt="Infotainmentify"
-            className="h-7 w-7 rounded-lg object-contain"
-          />
-
-          {/* Kullanıcı menüsü */}
-          <div className="relative" ref={menuRef}>
-            <button
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 hover:bg-neutral-100"
-              onClick={() => setMenuOpen((s) => !s)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              title="Hesap"
-            >
-              <span className="select-none text-sm text-neutral-600">☺</span>
-            </button>
-
-            {menuOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg"
-              >
-                <button
-                  className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setPwdOpen(true);
-                  }}
-                >
-                  Şifre Değiştir
-                </button>
-                <button
-                  className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                  onClick={handleLogout}
-                >
-                  Çıkış Yap
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Şifre Değiştir Modal */}
-      <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
+      {/* Sağ: Actions */}
+      <div className="flex items-center gap-4">
+        {/* SignalR Status (Yeşil nokta) */}
+        <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="text-xs font-medium text-zinc-400">Connected</span>
+        </div>
+
+        {/* Notifications */}
+        <button className="relative rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors">
+          <Bell size={20} />
+          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-indigo-500 ring-2 ring-zinc-950" />
+        </button>
+      </div>
     </div>
   );
 }

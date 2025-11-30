@@ -1,103 +1,70 @@
-import { http, qs } from "./http";
+import { http } from "./http"; // Veya senin http helper dosyan
 
-/* ===========================================================
-   📦 TYPES
-   =========================================================== */
-
-export interface TopicListDto {
+export type TopicListDto = {
     id: number;
-    category?: string | null;
-    subCategory?: string | null;
-    tone?: string | null;
-    needsFootage: boolean;
-    factCheck: boolean;
-    scriptGenerated: boolean;
-    isActive: boolean;
-    updatedAt?: string | null;
-    promptId?: number | null;
-    promptName?: string | null;
-    scriptId?: number | null;
-    scriptTitle?: string | null;
-    premise?: string | null;
-    premiseTr?: string | null;
-    renderStyle?: string | null;
-    productionType?: string | null;
-    allowScriptGeneration?: boolean | null;
-}
+    title: string;
+    premise: string;
+    category?: string;
+    series?: string;
+    createdAt: string;
+};
 
-export interface TopicDetailDto {
+export type TopicDetailDto = {
     id: number;
-    topicCode: string;
-    category?: string | null;
-    subCategory?: string | null;
-    series?: string | null;
-    premise?: string | null;
-    premiseTr?: string | null;
-    tone?: string | null;
-    potentialVisual?: string | null;
-    renderStyle?: string | null;
-    voiceHint?: string | null;
-    scriptHint?: string | null;
-    needsFootage: boolean;
-    factCheck: boolean;
-    topicJson?: string | null;
-    scriptGenerated: boolean;
-    promptId?: number | null;
-    promptName?: string | null;
-    scriptId?: number | null;
-    scriptTitle?: string | null;
-    scriptGeneratedAt?: string | null;
-    priority: number;
-    isActive: boolean;
-    allowScriptGeneration?: boolean | null;
-}
+    title: string;
+    premise: string;
+    languageCode: string;
+    category?: string;
+    subCategory?: string;
+    series?: string;
+    tagsJson?: string;
+    tone?: string;
+    renderStyle?: string;
+    visualPromptHint?: string;
+    createdAt: string;
+    updatedAt?: string;
+};
 
-/* ===========================================================
-   🚀 API FUNCTIONS
-   =========================================================== */
+export type SaveTopicDto = {
+    title: string;
+    premise: string;
+    languageCode: string;
+    category?: string;
+    subCategory?: string;
+    series?: string;
+    tagsJson?: string;
+    tone?: string;
+    renderStyle?: string;
+    visualPromptHint?: string;
+};
 
 export const topicsApi = {
-    // ---------------- LIST & DETAIL ----------------
     list(q?: string, category?: string) {
-        return http<TopicListDto[]>(`/api/topics${qs({ q, category })}`);
+        const p = new URLSearchParams();
+        if (q) p.set("q", q);
+        if (category) p.set("category", category);
+        return http<TopicListDto[]>(`/api/topics?${p.toString()}`);
     },
 
     get(id: number) {
         return http<TopicDetailDto>(`/api/topics/${id}`);
     },
 
-    // ---------------- CREATE/UPDATE (UPSERT) ----------------
-    save(dto: TopicDetailDto) {
+    create(dto: SaveTopicDto) {
         return http<{ id: number }>(`/api/topics`, {
             method: "POST",
             body: JSON.stringify(dto),
         });
     },
 
-    // ---------------- DELETE ----------------
+    update(id: number, dto: SaveTopicDto) {
+        return http<void>(`/api/topics/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(dto),
+        });
+    },
+
     delete(id: number) {
         return http<void>(`/api/topics/${id}`, { method: "DELETE" });
     },
-
-    // ---------------- TOGGLE ACTIVE ----------------
-    toggleActive(id: number, isActive: boolean) {
-        return http<void>(`/api/topics/${id}/active${qs({ isActive })}`, {
-            method: "PUT",
-        });
-    },
-
-    // ---------------- GENERATION OPS ----------------
-    generateFromPrompt(promptId: number) {
-        return http<{ jobId?: number; createdTopicIds?: number[] }>(
-            `/api/generate/topics${qs({ promptId })}`,
-            { method: "POST" }
-        );
-    },
-
-    setAllowScript(id: number, allow: boolean) {
-        return http(`/api/topics/${id}/allow-script`, {
-            method: "PUT",
-            body: JSON.stringify(allow),
-        });
-    }
 };

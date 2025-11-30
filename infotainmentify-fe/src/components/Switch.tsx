@@ -2,23 +2,41 @@ type Props = {
   checked: boolean;
   onChange: (v: boolean) => void;
   label?: string;
+  disabled?: boolean;
 };
 
-export default function Switch({ checked, onChange, label }: Props) {
+export default function Switch({ checked, onChange, label, disabled }: Props) {
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 ${disabled ? "opacity-50" : ""}`}>
+      {/* Label'a tıklayınca da switch değişsin diye label etiketi kullanabiliriz ama div daha güvenli */}
       {label && (
-        <span className="text-sm text-neutral-700 select-none">{label}</span>
+        <span
+          onClick={() => !disabled && onChange(!checked)}
+          className="text-sm font-medium text-slate-700 select-none cursor-pointer hover:text-slate-900 transition-colors"
+        >
+          {label}
+        </span>
       )}
+
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative w-10 h-6 rounded-full transition-colors duration-200 
-          ${checked ? "bg-green-500" : "bg-neutral-300"}`}
+        className={`
+          relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+          transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 
+          focus-visible:ring-indigo-600 focus-visible:ring-offset-2
+          ${checked ? "bg-indigo-600" : "bg-slate-200"}
+          ${disabled ? "cursor-not-allowed" : ""}
+        `}
       >
+        <span className="sr-only">Toggle setting</span>
         <span
-          className={`absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white transition-all duration-200 shadow-sm
-            ${checked ? "translate-x-4" : "translate-x-0"}`}
+          className={`
+            pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 
+            transition duration-200 ease-in-out
+            ${checked ? "translate-x-5" : "translate-x-0"}
+          `}
         />
       </button>
     </div>

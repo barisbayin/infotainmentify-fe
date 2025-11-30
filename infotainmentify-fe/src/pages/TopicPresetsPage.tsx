@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
-import { topicsApi, type TopicListDto, type SaveTopicDto } from "../api/topics";
+import {
+  topicPresetsApi,
+  type TopicPresetListDto,
+  type SaveTopicPresetDto,
+} from "../api/topicPresets";
+import { aiConnectionsApi } from "../api/aiConnections"; // Dropdown için
 import toast from "react-hot-toast";
 import {
   Page,
@@ -16,6 +21,9 @@ import {
   TH,
   TD,
   Modal,
+  Select,
+  NumberInput,
+  JsonInput,
 } from "../components/ui-kit";
 import {
   Plus,
@@ -23,37 +31,37 @@ import {
   Save,
   Search,
   RefreshCw,
-  X,
-  Lightbulb,
+  Settings,
   Maximize2,
   Copy,
-  Zap,
+  Cpu,
 } from "lucide-react";
 
-// Varsayılan Form
-const EMPTY_FORM: SaveTopicDto = {
-  title: "",
-  premise: "",
-  languageCode: "tr-TR",
-  category: "",
-  subCategory: "",
-  series: "",
-  tone: "",
-  renderStyle: "",
-  visualPromptHint: "",
-  tagsJson: "",
+const EMPTY_FORM: SaveTopicPresetDto = {
+  name: "",
+  description: "",
+  userAiConnectionId: 0,
+  modelName: "gpt-4o",
+  temperature: 0.7,
+  language: "tr-TR",
+  promptTemplate: "",
+  systemInstruction: "",
+  contextKeywordsJson: "",
 };
 
-export default function TopicsPage() {
+export default function TopicPresetsPage() {
   // --- STATE ---
-  const [items, setItems] = useState<TopicListDto[]>([]);
+  const [items, setItems] = useState<TopicPresetListDto[]>([]);
+  const [connections, setConnections] = useState<
+    { label: string; value: string }[]
+  >([]); // Dropdown datası
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [form, setForm] = useState<SaveTopicDto>(EMPTY_FORM);
+  const [form, setForm] = useState<SaveTopicPresetDto>(EMPTY_FORM);
 
   // Modals
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -62,41 +70,53 @@ export default function TopicsPage() {
     content: string;
   } | null>(null);
 
-  // --- ACTIONS ---
-  const loadList = async () => {
+  // --- INIT ---
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await topicsApi.list(debouncedSearch);
-      setItems(data);
+      // Paralel yükleme: Hem liste hem bağlantılar
+      const [presetsData, connectionsData] = await Promise.all([
+        topicPresetsApi.list(),
+        aiConnectionsApi.list(),
+      ]);
+
+      setItems(presetsData);
+
+      // Bağlantıları Select formatına çevir
+      setConnections(
+        connectionsData.map((c) => ({
+          label: `${c.name} (${c.provider})`,
+          value: c.id.toString(),
+        }))
+      );
     } catch {
-      toast.error("Liste yüklenemedi");
+      toast.error("Veriler yüklenemedi");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+    loadData();
+  }, []);
 
+  // --- HANDLERS ---
   const handleSelect = async (id: number) => {
     if (id === selectedId) return;
     setSelectedId(id);
     setDetailLoading(true);
     try {
-      const data = await topicsApi.get(id);
+      const data = await topicPresetsApi.get(id);
       setForm({
-        title: data.title,
-        premise: data.premise,
-        languageCode: data.languageCode ?? "tr-TR",
-        category: data.category ?? "",
-        subCategory: data.subCategory ?? "",
-        series: data.series ?? "",
-        tone: data.tone ?? "",
-        renderStyle: data.renderStyle ?? "",
-        visualPromptHint: data.visualPromptHint ?? "",
-        tagsJson: data.tagsJson ?? "",
+        name: data.name,
+        description: data.description ?? "",
+        userAiConnectionId: data.userAiConnectionId,
+        modelName: data.modelName,
+        temperature: data.temperature,
+        language: data.language,
+        promptTemplate: data.promptTemplate,
+        systemInstruction: data.systemInstruction ?? "",
+        contextKeywordsJson: data.contextKeywordsJson ?? "",
       });
     } catch {
       toast.error("Detay yüklenemedi.");
@@ -111,22 +131,28 @@ export default function TopicsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.premise.trim()) {
-      toast.error("Başlık ve Ana Fikir zorunludur.");
+    if (!form.name.trim() || !form.promptTemplate.trim()) {
+      toast.error("Ad ve Prompt Şablonu zorunludur.");
+      return;
+    }
+    if (!form.userAiConnectionId) {
+      toast.error("Lütfen bir AI Bağlantısı seçin.");
       return;
     }
 
     setDetailLoading(true);
     try {
       if (selectedId) {
-        await topicsApi.update(selectedId, form);
+        await topicPresetsApi.update(selectedId, form);
         toast.success("Güncellendi.");
       } else {
-        await topicsApi.create(form);
-        toast.success("Fikir oluşturuldu.");
+        await topicPresetsApi.create(form);
+        toast.success("Oluşturuldu.");
         handleNew();
       }
-      loadList();
+      // Sadece listeyi tazele (Connections tekrar yüklemeye gerek yok)
+      const list = await topicPresetsApi.list();
+      setItems(list);
     } catch {
       toast.error("Kayıt başarısız.");
     } finally {
@@ -138,11 +164,12 @@ export default function TopicsPage() {
     if (!selectedId) return;
     setDetailLoading(true);
     try {
-      await topicsApi.delete(selectedId);
+      await topicPresetsApi.delete(selectedId);
       toast.success("Silindi.");
       setIsDeleteModalOpen(false);
       handleNew();
-      loadList();
+      const list = await topicPresetsApi.list();
+      setItems(list);
     } catch {
       toast.error("Silme başarısız.");
     } finally {
@@ -155,38 +182,34 @@ export default function TopicsPage() {
     toast.success("Kopyalandı!");
   };
 
+  // Filtreleme (Client-side search çünkü backend endpoint'i şu an parametre almıyor olabilir, alıyorsa değiştiririz)
+  const filteredItems = items.filter((i) =>
+    i.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
+
   return (
     <Page>
-      {/* ANA GRID (8-4 Düzeni) */}
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
         {/* SOL: LİSTE (8 BİRİM) */}
         <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
           <div className="flex justify-between items-center gap-2 shrink-0">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Zap className="text-indigo-500" /> Fikir Havuzu
+              <Settings className="text-indigo-500" /> Konu Ayarları (Presets)
             </h1>
+            <div className="flex gap-2 relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <Input
+                placeholder="Preset ara..."
+                className="pl-9 bg-zinc-900/50 border-zinc-800"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
             <div className="flex gap-2">
-              <div className="relative w-64 group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
-                <Input
-                  placeholder="Fikirlerde ara..."
-                  className="pl-9 bg-zinc-900/50 border-zinc-800"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={loadList}
+                onClick={loadData}
                 className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
               >
                 <RefreshCw
@@ -198,7 +221,7 @@ export default function TopicsPage() {
                 onClick={handleNew}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg px-4"
               >
-                <Plus size={18} className="mr-2" /> Yeni Fikir
+                <Plus size={18} className="mr-2" /> Yeni Ayar
               </Button>
             </div>
           </div>
@@ -208,18 +231,16 @@ export default function TopicsPage() {
               <Table className="border-none w-full">
                 <THead>
                   <TR className="bg-zinc-900/80 sticky top-0 z-10 backdrop-blur-md">
-                    <TH className="text-zinc-400 font-medium">Başlık</TH>
-                    <TH className="text-zinc-400 font-medium">Kategori</TH>
-                    <TH className="text-zinc-400 font-medium hidden md:table-cell">
-                      Ana Fikir (Özet)
-                    </TH>
+                    <TH className="text-zinc-400 font-medium">Preset Adı</TH>
+                    <TH className="text-zinc-400 font-medium">Model</TH>
+                    <TH className="text-zinc-400 font-medium">Dil</TH>
                     <TH className="text-zinc-400 font-medium text-right">
-                      Tarih
+                      Güncelleme
                     </TH>
                   </TR>
                 </THead>
                 <tbody>
-                  {items.map((item) => (
+                  {filteredItems.map((item) => (
                     <TR
                       key={item.id}
                       onClick={() => handleSelect(item.id)}
@@ -231,33 +252,27 @@ export default function TopicsPage() {
                         }`}
                     >
                       <TD className="font-medium text-zinc-200 py-3">
-                        {item.title}
+                        {item.name}
                       </TD>
-                      <TD className="text-zinc-400 py-3">
-                        {item.category ? (
-                          <Badge variant="neutral" className="scale-90">
-                            {item.category}
-                          </Badge>
-                        ) : (
-                          "-"
-                        )}
+                      <TD className="text-zinc-400 py-3 flex items-center gap-1.5">
+                        <Cpu size={14} className="text-indigo-400" />{" "}
+                        {item.modelName}
                       </TD>
-                      <TD className="text-zinc-500 text-xs py-3 hidden md:table-cell max-w-xs truncate">
-                        {item.premise}
-                      </TD>
+                      <TD className="text-zinc-400 py-3">{item.language}</TD>
                       <TD className="text-right text-zinc-500 text-xs py-3 font-mono">
-                        {new Date(item.createdAt).toLocaleDateString("tr-TR")}
+                        {item.updatedAt
+                          ? new Date(item.updatedAt).toLocaleDateString("tr-TR")
+                          : "-"}
                       </TD>
                     </TR>
                   ))}
-                  {items.length === 0 && !loading && (
+                  {filteredItems.length === 0 && !loading && (
                     <TR>
                       <TD
                         colSpan={4}
-                        className="text-center py-12 text-zinc-500 flex flex-col items-center justify-center gap-2"
+                        className="text-center py-12 text-zinc-500"
                       >
-                        <Lightbulb size={24} className="opacity-50" />
-                        <span>Henüz bir fikir yok.</span>
+                        Kayıt bulunamadı.
                       </TD>
                     </TR>
                   )}
@@ -265,7 +280,7 @@ export default function TopicsPage() {
               </Table>
             </div>
             <div className="p-2 border-t border-zinc-800 bg-zinc-900/50 text-xs text-zinc-500 text-center shrink-0">
-              Toplam {items.length} fikir
+              Toplam {filteredItems.length} kayıt
             </div>
           </Card>
         </div>
@@ -282,7 +297,7 @@ export default function TopicsPage() {
                   }`}
                 />
                 <h2 className="text-md font-bold text-white tracking-tight">
-                  {selectedId ? "Fikri Düzenle" : "Yeni Fikir"}
+                  {selectedId ? "Ayarları Düzenle" : "Yeni Ayar"}
                 </h2>
               </div>
               {selectedId && (
@@ -300,58 +315,94 @@ export default function TopicsPage() {
                 </div>
               ) : (
                 <>
-                  {/* Başlık & Dil */}
                   <div className="space-y-4">
                     <div>
                       <Label className="mb-1.5">
-                        Fikir Başlığı <span className="text-indigo-400">*</span>
+                        Preset Adı <span className="text-indigo-400">*</span>
                       </Label>
                       <Input
-                        value={form.title}
+                        value={form.name}
                         onChange={(e) =>
-                          setForm({ ...form, title: e.target.value })
+                          setForm({ ...form, name: e.target.value })
                         }
-                        placeholder="Örn: Kedilerin Mırlama Sırrı"
-                        className="focus:border-indigo-500 bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                        className="bg-zinc-950/50 border-zinc-800 h-9 text-sm focus:border-indigo-500"
+                        placeholder="Örn: Korku Hikayeleri V1"
                       />
                     </div>
+
+                    {/* AI Connection Select */}
+                    <div>
+                      <Label className="mb-1.5">
+                        AI Bağlantısı <span className="text-indigo-400">*</span>
+                      </Label>
+                      <Select
+                        value={form.userAiConnectionId.toString()}
+                        onChange={(val) =>
+                          setForm({ ...form, userAiConnectionId: Number(val) })
+                        }
+                        options={connections}
+                        placeholder="Bağlantı Seçiniz..."
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label className="mb-1.5">Kategori</Label>
+                        <Label className="mb-1.5">Model Adı</Label>
                         <Input
-                          value={form.category}
+                          value={form.modelName}
                           onChange={(e) =>
-                            setForm({ ...form, category: e.target.value })
+                            setForm({ ...form, modelName: e.target.value })
                           }
-                          placeholder="Bilim"
                           className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label className="mb-1.5">Dil</Label>
-                        <Input
-                          value={form.languageCode}
-                          onChange={(e) =>
-                            setForm({ ...form, languageCode: e.target.value })
+                        <Label className="mb-1.5">Sıcaklık (Temp)</Label>
+                        <NumberInput
+                          value={form.temperature}
+                          onChange={(val) =>
+                            setForm({ ...form, temperature: val })
                           }
-                          className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                          min={0}
+                          max={2}
+                          step={0.1}
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <Label className="mb-1.5">Dil</Label>
+                      <Input
+                        value={form.language}
+                        onChange={(e) =>
+                          setForm({ ...form, language: e.target.value })
+                        }
+                        className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                      />
                     </div>
                   </div>
 
-                  {/* Ana Fikir (Expandable) */}
-                  <div className="flex flex-col flex-1 min-h-[150px]">
+                  <div>
+                    <Label className="mb-1.5">Açıklama</Label>
+                    <Input
+                      value={form.description}
+                      onChange={(e) =>
+                        setForm({ ...form, description: e.target.value })
+                      }
+                      className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                      placeholder="Opsiyonel notlar..."
+                    />
+                  </div>
+
+                  {/* System Prompt */}
+                  <div>
                     <div className="flex justify-between items-center mb-1.5">
-                      <Label>
-                        Ana Fikir (Premise){" "}
-                        <span className="text-indigo-400">*</span>
-                      </Label>
+                      <Label>System Instruction (Rol)</Label>
                       <button
                         onClick={() =>
                           setPreviewModal({
-                            title: "Ana Fikir",
-                            content: form.premise,
+                            title: "System Instruction",
+                            content: form.systemInstruction || "",
                           })
                         }
                         className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -360,69 +411,54 @@ export default function TopicsPage() {
                       </button>
                     </div>
                     <Textarea
-                      className="flex-1 h-32 font-mono text-xs bg-zinc-950/50 border-zinc-800 focus:ring-indigo-500/20 focus:border-indigo-500 text-zinc-200 resize-none p-3"
-                      value={form.premise}
+                      className="h-20 font-mono text-xs bg-zinc-950/50 border-zinc-800 resize-none focus:border-indigo-500/50 text-zinc-300"
+                      value={form.systemInstruction}
                       onChange={(e) =>
-                        setForm({ ...form, premise: e.target.value })
+                        setForm({ ...form, systemInstruction: e.target.value })
                       }
-                      placeholder="Videonun temel konusu ne olacak? Detaylı açıklama..."
                     />
                   </div>
 
-                  {/* Detaylar (Grid) */}
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800/50">
-                    <div>
-                      <Label className="mb-1.5">Alt Kategori</Label>
-                      <Input
-                        value={form.subCategory}
-                        onChange={(e) =>
-                          setForm({ ...form, subCategory: e.target.value })
+                  {/* Prompt Template (Flex-1) */}
+                  <div className="flex flex-col flex-1 min-h-[200px]">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <Label>
+                        Prompt Şablonu{" "}
+                        <span className="text-indigo-400">*</span>
+                      </Label>
+                      <button
+                        onClick={() =>
+                          setPreviewModal({
+                            title: "Prompt Şablonu",
+                            content: form.promptTemplate,
+                          })
                         }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
+                        className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                      >
+                        <Maximize2 size={12} /> Genişlet
+                      </button>
                     </div>
-                    <div>
-                      <Label className="mb-1.5">Seri Adı</Label>
-                      <Input
-                        value={form.series}
-                        onChange={(e) =>
-                          setForm({ ...form, series: e.target.value })
-                        }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-1.5">Ton (Tone)</Label>
-                      <Input
-                        value={form.tone}
-                        onChange={(e) =>
-                          setForm({ ...form, tone: e.target.value })
-                        }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-1.5">Görsel Stil</Label>
-                      <Input
-                        value={form.renderStyle}
-                        onChange={(e) =>
-                          setForm({ ...form, renderStyle: e.target.value })
-                        }
-                        className="bg-zinc-950/50 border-zinc-800 h-8 text-xs"
-                      />
-                    </div>
+                    <Textarea
+                      className="flex-1 h-full w-full font-mono text-xs bg-zinc-950/50 border-zinc-800 focus:ring-indigo-500/20 focus:border-indigo-500 text-zinc-200 resize-none p-3"
+                      value={form.promptTemplate}
+                      onChange={(e) =>
+                        setForm({ ...form, promptTemplate: e.target.value })
+                      }
+                      placeholder="Örn: Create a story about {Category}..."
+                    />
                   </div>
 
-                  {/* Visual Prompt Hint */}
+                  {/* Keywords JSON */}
                   <div>
-                    <Label className="mb-1.5">Görsel İpucu (AI Hint)</Label>
-                    <Textarea
-                      className="h-16 font-mono text-xs bg-zinc-950/50 border-zinc-800 resize-none"
-                      value={form.visualPromptHint}
-                      onChange={(e) =>
-                        setForm({ ...form, visualPromptHint: e.target.value })
+                    <Label className="mb-1.5">
+                      Bağlam Anahtar Kelimeleri (JSON)
+                    </Label>
+                    <JsonInput
+                      value={form.contextKeywordsJson || ""}
+                      onChange={(val) =>
+                        setForm({ ...form, contextKeywordsJson: val })
                       }
-                      placeholder="AI görsel üretirken neye dikkat etsin?"
+                      placeholder='["viral", "short", "engaging"]'
                     />
                   </div>
                 </>
@@ -463,15 +499,15 @@ export default function TopicsPage() {
         </div>
       </div>
 
-      {/* Silme Modalı */}
+      {/* Modals */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Fikir Silinsin mi?"
+        title="Silinsin mi?"
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-zinc-300">
-            <b>"{form.title}"</b> başlıklı fikir silinecek.
+            <b>"{form.name}"</b> preseti silinecek.
           </p>
           <div className="flex justify-end gap-3 mt-2">
             <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
@@ -488,7 +524,6 @@ export default function TopicsPage() {
         </div>
       </Modal>
 
-      {/* Focus Mode Modalı */}
       <Modal
         isOpen={!!previewModal}
         onClose={() => setPreviewModal(null)}

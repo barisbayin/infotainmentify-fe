@@ -1,22 +1,20 @@
-// ===============================
-// File: src/pages/BlankPageTemplate.tsx
-// ===============================
-import { Page, Toolbar, Card, CardBody } from "../components/ui-kit";
+import { Page, PageHeader, Card } from "../components/ui-kit";
+
+// "export default" OLMALI
 export default function BlankPageTemplate() {
   return (
     <Page>
-      <div className="grid grid-cols-12 gap-4 h-full">
-        <section className="col-span-12 xl:col-span-7 flex flex-col min-h-0">
-          <Toolbar>/* filters, actions */</Toolbar>
-          <Card className="mt-3 flex-1 min-h-0 overflow-auto">
-            <CardBody>Left content</CardBody>
-          </Card>
-        </section>
-        <section className="col-span-12 xl:col-span-5 flex flex-col min-h-0">
-          <Card className="flex-1 min-h-0 overflow-auto">
-            <CardBody>Right content</CardBody>
-          </Card>
-        </section>
+      <PageHeader
+        title="Yapım Aşamasında"
+        subtitle="Bu modül henüz geliştirilme aşamasındadır."
+      />
+      <div className="flex flex-1 items-center justify-center min-h-[400px]">
+        <Card className="p-8 text-center border-dashed border-2 border-zinc-800 bg-transparent">
+          <h3 className="text-xl font-semibold text-zinc-400">
+            🚧 Çalışma Var
+          </h3>
+          <p className="text-zinc-500 mt-2">Bu sayfa yakında eklenecek.</p>
+        </Card>
       </div>
     </Page>
   );

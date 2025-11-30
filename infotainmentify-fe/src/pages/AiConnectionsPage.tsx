@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-  socialChannelsApi,
-  PLATFORMS,
-  type SocialChannelListDto,
-  type SaveSocialChannelDto,
-} from "../api/socialChannels";
+  aiConnectionsApi,
+  AI_PROVIDERS,
+  type UserAiConnectionListDto,
+  type SaveUserAiConnectionDto,
+} from "../api/aiConnections";
 import toast from "react-hot-toast";
 import {
   Page,
@@ -27,46 +27,39 @@ import {
   Trash2,
   Save,
   RefreshCw,
-  Share2,
-  Youtube,
-  Instagram,
-  Facebook,
-  Linkedin,
-  Twitter,
-  AlertTriangle,
-  CheckCircle2,
+  Key,
+  ShieldCheck,
   AlertCircle,
-  X,
 } from "lucide-react";
 
 // Varsayılan Form
-const EMPTY_FORM: SaveSocialChannelDto = {
-  channelType: 1, // Default YouTube
-  channelName: "",
-  channelHandle: "",
-  channelUrl: "",
-  platformChannelId: "",
-  rawTokensJson: "",
-  scopes: "",
+const EMPTY_FORM: SaveUserAiConnectionDto = {
+  name: "",
+  provider: "OpenAI", // Default seçim
+  apiKey: "",
+  extraId: "",
 };
 
-export default function SocialChannelsPage() {
-  // State
-  const [items, setItems] = useState<SocialChannelListDto[]>([]);
+export default function AiIntegrationsPage() {
+  // --- STATE ---
+  const [items, setItems] = useState<UserAiConnectionListDto[]>([]);
   const [loading, setLoading] = useState(false);
+
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [form, setForm] = useState<SaveSocialChannelDto>(EMPTY_FORM);
+  const [form, setForm] = useState<SaveUserAiConnectionDto>(EMPTY_FORM);
+
+  // Modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // --- ACTIONS ---
   const loadList = async () => {
     setLoading(true);
     try {
-      const data = await socialChannelsApi.list();
+      const data = await aiConnectionsApi.list();
       setItems(data);
     } catch {
-      toast.error("Kanallar yüklenemedi");
+      toast.error("Bağlantılar yüklenemedi");
     } finally {
       setLoading(false);
     }
@@ -78,22 +71,21 @@ export default function SocialChannelsPage() {
 
   const handleSelect = async (id: number) => {
     if (id === selectedId) return;
+
     setSelectedId(id);
     setDetailLoading(true);
     try {
-      const data = await socialChannelsApi.get(id);
-
-      // Platform Enum ID'sini bul (Backend string dönüyor "YouTube", biz ID'ye çeviriyoruz)
-      const platformObj = PLATFORMS.find((p) => p.label === data.platform);
+      const data = await aiConnectionsApi.get(id);
 
       setForm({
-        channelType: platformObj ? platformObj.id : 1,
-        channelName: data.channelName,
-        channelHandle: data.channelHandle ?? "",
-        channelUrl: data.channelUrl ?? "",
-        platformChannelId: data.platformChannelId ?? "",
-        scopes: data.scopes ?? "",
-        rawTokensJson: "", // Güvenlik: Tokenlar geri gelmez, boş bırakıyoruz.
+        name: data.name,
+        provider: data.provider,
+
+        // 🔥 GÜNCELLEME: Backend'den gelen (artık şifresi çözülmüş) key'i buraya basıyoruz.
+        // Eskiden: apiKey: "" yapıyorduk.
+        apiKey: data.maskedApiKey || "",
+
+        extraId: data.extraId ?? "",
       });
     } catch {
       toast.error("Detay yüklenemedi.");
@@ -108,24 +100,30 @@ export default function SocialChannelsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.channelName.trim()) {
-      toast.error("Kanal adı zorunludur.");
+    if (!form.name.trim()) {
+      toast.error("Bağlantı adı zorunludur.");
+      return;
+    }
+    // Yeni kayıtta API Key şart, güncellemede opsiyonel
+    if (!selectedId && !form.apiKey.trim()) {
+      toast.error("API Anahtarı zorunludur.");
       return;
     }
 
     setDetailLoading(true);
     try {
       if (selectedId) {
-        await socialChannelsApi.update(selectedId, form);
+        await aiConnectionsApi.update(selectedId, form);
         toast.success("Güncellendi.");
       } else {
-        await socialChannelsApi.create(form);
-        toast.success("Kanal eklendi.");
+        await aiConnectionsApi.create(form);
+        toast.success("Bağlantı oluşturuldu.");
         handleNew();
       }
       loadList();
     } catch (err: any) {
-      toast.error("Kaydedilemedi.");
+      // Backend'den gelen validasyon mesajını göster (örn: "sk- ile başlamalı")
+      toast.error("Kaydedilemedi. Girdileri kontrol edin.");
     } finally {
       setDetailLoading(false);
     }
@@ -135,7 +133,7 @@ export default function SocialChannelsPage() {
     if (!selectedId) return;
     setDetailLoading(true);
     try {
-      await socialChannelsApi.delete(selectedId);
+      await aiConnectionsApi.delete(selectedId);
       toast.success("Silindi.");
       setIsDeleteModalOpen(false);
       handleNew();
@@ -147,29 +145,18 @@ export default function SocialChannelsPage() {
     }
   };
 
-  // Helper: Platform İkonu
-  const getPlatformIcon = (platformName: string) => {
-    switch (platformName) {
-      case "YouTube":
-        return <Youtube size={16} />;
-      case "Instagram":
-        return <Instagram size={16} />;
-      case "Facebook":
-        return <Facebook size={16} />;
-      case "Twitter":
-        return <Twitter size={16} />;
-      case "LinkedIn":
-        return <Linkedin size={16} />;
+  // Provider'a göre renk
+  const getProviderBadge = (provider: string) => {
+    switch (provider) {
+      case "OpenAI":
+        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+      case "GoogleVertex":
+        return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+      case "ElevenLabs":
+        return "bg-orange-500/10 text-orange-400 border-orange-500/20";
       default:
-        return <Share2 size={16} />;
+        return "bg-zinc-800 text-zinc-400 border-zinc-700";
     }
-  };
-
-  const getPlatformStyle = (platformName: string) => {
-    return (
-      PLATFORMS.find((p) => p.label === platformName)?.bg ||
-      "bg-zinc-800 border-zinc-700"
-    );
   };
 
   return (
@@ -179,7 +166,7 @@ export default function SocialChannelsPage() {
         <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
           <div className="flex justify-between items-center gap-2 shrink-0">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Share2 className="text-indigo-500" /> Sosyal Hesaplar
+              <ShieldCheck className="text-indigo-500" /> AI Bağlantıları
             </h1>
             <div className="flex gap-2">
               <Button
@@ -197,7 +184,7 @@ export default function SocialChannelsPage() {
                 onClick={handleNew}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg px-4"
               >
-                <Plus size={18} className="mr-2" /> Hesap Ekle
+                <Plus size={18} className="mr-2" /> Yeni Bağlantı
               </Button>
             </div>
           </div>
@@ -207,10 +194,12 @@ export default function SocialChannelsPage() {
               <Table className="border-none w-full">
                 <THead>
                   <TR className="bg-zinc-900/80 sticky top-0 z-10 backdrop-blur-md">
-                    <TH className="text-zinc-400 font-medium">Kanal Adı</TH>
-                    <TH className="text-zinc-400 font-medium">Platform</TH>
+                    <TH className="text-zinc-400 font-medium">Bağlantı Adı</TH>
+                    <TH className="text-zinc-400 font-medium">
+                      Sağlayıcı (Provider)
+                    </TH>
                     <TH className="text-zinc-400 font-medium text-right">
-                      Eklendiği Tarih
+                      Oluşturulma
                     </TH>
                   </TR>
                 </THead>
@@ -226,16 +215,16 @@ export default function SocialChannelsPage() {
                             : "border-l-4 border-l-transparent"
                         }`}
                     >
-                      <TD className="font-medium text-zinc-200 py-3">
-                        {item.channelName}
+                      <TD className="font-medium text-zinc-200 py-3 flex items-center gap-2">
+                        <Key size={14} className="text-zinc-500" /> {item.name}
                       </TD>
                       <TD className="py-3">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${getPlatformStyle(
-                            item.platform
-                          )} text-zinc-300`}
+                          className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getProviderBadge(
+                            item.provider
+                          )}`}
                         >
-                          {getPlatformIcon(item.platform)} {item.platform}
+                          {item.provider}
                         </span>
                       </TD>
                       <TD className="text-right text-zinc-500 text-xs py-3 font-mono">
@@ -249,7 +238,7 @@ export default function SocialChannelsPage() {
                         colSpan={3}
                         className="text-center py-12 text-zinc-500"
                       >
-                        Henüz sosyal hesap eklenmemiş.
+                        Henüz bağlantı eklenmemiş.
                       </TD>
                     </TR>
                   )}
@@ -262,7 +251,6 @@ export default function SocialChannelsPage() {
         {/* === SAĞ: FORM (4 BİRİM) === */}
         <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-0">
           <Card className="h-full flex flex-col overflow-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0">
-            {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-zinc-800/50 shrink-0 bg-zinc-900/30">
               <div className="flex items-center gap-2">
                 <div
@@ -271,7 +259,7 @@ export default function SocialChannelsPage() {
                   }`}
                 />
                 <h2 className="text-md font-bold text-white tracking-tight">
-                  {selectedId ? "Hesap Ayarları" : "Yeni Hesap Bağla"}
+                  {selectedId ? "Bağlantıyı Düzenle" : "Yeni Bağlantı"}
                 </h2>
               </div>
               {selectedId && (
@@ -281,7 +269,6 @@ export default function SocialChannelsPage() {
               )}
             </div>
 
-            {/* Form */}
             <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin scrollbar-thumb-zinc-700">
               {detailLoading ? (
                 <div className="flex h-full items-center justify-center text-zinc-500 gap-2">
@@ -290,96 +277,99 @@ export default function SocialChannelsPage() {
               ) : (
                 <>
                   <div className="space-y-4">
-                    {/* Platform Select */}
-                    <div>
-                      <Label className="mb-1.5">Platform</Label>
-                      <Select
-                        value={form.channelType.toString()}
-                        onChange={(val) =>
-                          setForm({ ...form, channelType: parseInt(val) })
-                        }
-                        options={PLATFORMS.map((p) => ({
-                          label: p.label,
-                          value: p.id.toString(),
-                        }))}
-                        placeholder="Platform Seçiniz"
-                      />
-                    </div>
-
                     <div>
                       <Label className="mb-1.5">
-                        Kanal Adı <span className="text-indigo-400">*</span>
+                        Bağlantı Adı (Takma İsim){" "}
+                        <span className="text-indigo-400">*</span>
                       </Label>
                       <Input
-                        value={form.channelName}
+                        value={form.name}
                         onChange={(e) =>
-                          setForm({ ...form, channelName: e.target.value })
+                          setForm({ ...form, name: e.target.value })
                         }
-                        placeholder="Örn: Gemini Türkiye"
-                        className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                        placeholder="Örn: Şahsi OpenAI Hesabım"
+                        className="focus:border-indigo-500 bg-zinc-950/50 border-zinc-800 h-9 text-sm"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="mb-1.5">Handle (@)</Label>
-                        <Input
-                          value={form.channelHandle || ""}
-                          onChange={(e) =>
-                            setForm({ ...form, channelHandle: e.target.value })
-                          }
-                          placeholder="@geminitr"
-                          className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="mb-1.5">Platform ID</Label>
-                        <Input
-                          value={form.platformChannelId || ""}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              platformChannelId: e.target.value,
-                            })
-                          }
-                          placeholder="UCx..."
-                          className="bg-zinc-950/50 border-zinc-800 h-9 text-sm font-mono text-xs"
-                        />
-                      </div>
-                    </div>
-
+                    {/* PROVIDER ALANI (GÜNCEL) */}
                     <div>
-                      <Label className="mb-1.5">Kanal URL</Label>
-                      <Input
-                        value={form.channelUrl || ""}
-                        onChange={(e) =>
-                          setForm({ ...form, channelUrl: e.target.value })
-                        }
-                        placeholder="https://youtube.com/..."
-                        className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                      <Label className="mb-1.5">Sağlayıcı (Provider)</Label>
+                      <Select
+                        value={form.provider}
+                        onChange={(val) => setForm({ ...form, provider: val })}
+                        options={AI_PROVIDERS} // Serviste tanımladığımız liste
+                        placeholder="Sağlayıcı Seçiniz"
                       />
                     </div>
 
-                    {/* 🔥 JSON Token Input */}
+                    {/* API KEY / JSON ALANI */}
                     <div>
-                      <Label className="mb-1.5">OAuth Tokens (JSON)</Label>
-                      <JsonInput
-                        value={form.rawTokensJson || ""}
-                        onChange={(val) =>
-                          setForm({ ...form, rawTokensJson: val })
-                        }
-                        placeholder={
-                          selectedId
-                            ? "Tokenları güncellemek için yeni JSON yapıştırın..."
-                            : '{\n  "access_token": "...",\n  "refresh_token": "..."\n}'
-                        }
-                      />
-                      <p className="text-[10px] text-zinc-500 mt-1.5 flex items-center gap-1.5">
-                        <AlertCircle size={10} className="text-amber-500" />
-                        Güvenlik gereği mevcut tokenlar görüntülenmez, sadece
-                        üzerine yazılabilir.
-                      </p>
+                      <Label className="mb-1.5">
+                        {form.provider === "GoogleVertex"
+                          ? "Service Account JSON"
+                          : "API Anahtarı"}
+                        {!selectedId && (
+                          <span className="text-indigo-400">*</span>
+                        )}
+                      </Label>
+
+                      {form.provider === "GoogleVertex" ? (
+                        // 🔥 YENİ JSON INPUT BİLEŞENİ
+                        <JsonInput
+                          value={form.apiKey}
+                          onChange={(val) => setForm({ ...form, apiKey: val })}
+                          placeholder={
+                            '{\n  "type": "service_account",\n  "project_id": "..."\n}'
+                          }
+                        />
+                      ) : (
+                        // Standart Password Input
+                        <Input
+                          type="password"
+                          value={form.apiKey}
+                          onChange={(e) =>
+                            setForm({ ...form, apiKey: e.target.value })
+                          }
+                          placeholder={
+                            selectedId
+                              ? "Değiştirmek istemiyorsanız boş bırakın"
+                              : "sk-..."
+                          }
+                          className="bg-zinc-950/50 border-zinc-800 h-9 text-sm font-mono placeholder:text-zinc-600"
+                          autoComplete="off"
+                        />
+                      )}
+
+                      {form.provider !== "GoogleVertex" && (
+                        <p className="text-[10px] text-zinc-500 mt-1.5 flex items-center gap-1.5">
+                          <ShieldCheck size={12} className="text-emerald-500" />
+                          Bu anahtar veritabanında AES-256 ile şifrelenerek
+                          saklanır.
+                        </p>
+                      )}
                     </div>
+
+                    {/* Google Vertex seçiliyse Extra ID göster */}
+                    {form.provider === "GoogleVertex" && (
+                      <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                        <Label className="mb-1.5 text-blue-400">
+                          Project ID (Opsiyonel)
+                        </Label>
+                        <Input
+                          value={form.extraId}
+                          onChange={(e) =>
+                            setForm({ ...form, extraId: e.target.value })
+                          }
+                          placeholder="my-google-project-id"
+                          className="bg-zinc-900 border-blue-500/30 h-9 text-sm"
+                        />
+                        <p className="text-[10px] text-blue-400/70 mt-1 flex items-center gap-1">
+                          <AlertCircle size={10} /> JSON içinde varsa otomatik
+                          algılanır.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -423,17 +413,18 @@ export default function SocialChannelsPage() {
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Hesap Silinsin mi?"
+        title="Bağlantı Silinsin mi?"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-            <AlertTriangle className="text-red-500 shrink-0" size={24} />
-            <p className="text-sm text-zinc-300">
-              <b>"{form.channelName}"</b> hesabı silinecek.
-              <br />
-              Otomatik yükleme (Upload) işlemleri duracaktır.
-            </p>
-          </div>
+          <p className="text-sm text-zinc-300">
+            <b>"{form.name}"</b> bağlantısı silinecek.
+            <br />
+            <br />
+            <span className="text-red-400 text-xs">
+              ⚠️ Uyarı: Bu bağlantıyı kullanan Preset'ler çalışmayı
+              durdurabilir.
+            </span>
+          </p>
           <div className="flex justify-end gap-3 mt-2">
             <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
               İptal

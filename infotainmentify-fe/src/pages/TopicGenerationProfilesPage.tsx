@@ -26,7 +26,7 @@ import {
   type TopicGenerationProfileListDto,
 } from "../api/topicProfiles";
 import { promptsApi } from "../api/prompts";
-import { aiIntegrationsApi } from "../api/aiIntegrations";
+import { aiIntegrationsApi } from "../api/aiConnections";
 import Switch from "../components/Switch";
 
 // ------------------- Empty Form -------------------

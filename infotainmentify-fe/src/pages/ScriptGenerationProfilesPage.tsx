@@ -26,7 +26,7 @@ import {
   type ScriptGenerationProfileDetailDto,
 } from "../api/scriptProfiles";
 import { promptsApi } from "../api/prompts";
-import { aiIntegrationsApi } from "../api/aiIntegrations";
+import { aiIntegrationsApi } from "../api/aiConnections";
 import { topicProfilesApi } from "../api/topicProfiles";
 
 // ------------------- Empty Form -------------------

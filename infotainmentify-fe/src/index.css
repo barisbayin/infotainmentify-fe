@@ -21,3 +21,46 @@ select {
   background-position: right 0.75rem center;
   background-size: 1rem;
 }
+
+@layer base {
+  /* Firefox için */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #27272a #09090b; /* zinc-800 zinc-950 */
+  }
+
+  /* Chrome, Edge, Safari için */
+  ::-webkit-scrollbar {
+    width: 8px; /* Dikey scroll genişliği */
+    height: 8px; /* Yatay scroll yüksekliği */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #09090b; /* zinc-950 (Arkaplan) */
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #27272a; /* zinc-800 (Çubuk rengi) */
+    border-radius: 4px;
+    border: 2px solid #09090b; /* Kenarlarda boşluk hissi verir */
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46; /* zinc-700 (Hover rengi) */
+  }
+}
+
+@layer base {
+  /* Chrome, Safari, Edge, Opera */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Firefox */
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
