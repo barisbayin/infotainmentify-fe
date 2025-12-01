@@ -1,6 +1,6 @@
 import { pipelineRunsApi } from "./pipelineRuns";
 import { topicsApi } from "./topics";
-import { scriptsApi } from "./scripts";
+// import { scriptsApi } from "./scripts";
 
 // Dashboard verisi için özel tip
 export type DashboardStats = {

@@ -46,25 +46,50 @@ export default function Sidebar({
         )}
       >
         {/* Header (Logo) */}
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800 px-4">
+        <div
+          className={cn(
+            "flex h-16 shrink-0 items-center border-b border-zinc-800 transition-all duration-300",
+            // 🔥 DÜZELTME 1: Kapalıyken padding'i px-2'ye düşür (px-4 çok fazla geliyor)
+            collapsed ? "justify-center px-2 gap-2" : "justify-between px-4"
+          )}
+        >
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 font-bold text-lg">
-              I
-            </div>
-            {!collapsed && (
+            {/* 🔥 DÜZELTME 2: min-w-[2rem] ekledik. Tarayıcıya "Ne olursa olsun bunu 32px'den küçük yapma" diyoruz. */}
+            <img
+              src="/favicon.png"
+              alt="Logo"
+              className="h-8 w-8 min-w-[2rem] min-h-[2rem] shrink-0 rounded-full object-cover bg-zinc-900 border border-zinc-700/50"
+            />
+
+            {/* Yazı: Animasyonlu gizleme */}
+            <div
+              className={cn(
+                "transition-all duration-300 ease-in-out origin-left overflow-hidden",
+                collapsed
+                  ? "w-0 opacity-0 scale-0"
+                  : "w-auto opacity-100 scale-100"
+              )}
+            >
               <span className="font-bold tracking-tight text-zinc-100 text-base whitespace-nowrap">
                 Infotainmentify
               </span>
-            )}
+            </div>
           </div>
 
-          {/* Desktop Toggle */}
+          {/* Toggle Butonu (Sadece Desktop) */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+            // 🔥 DÜZELTME 3: Kapalıyken butonu gizlemiyoruz ama biraz daha sıkıştırıyoruz
+            className={cn(
+              "hidden lg:flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors",
+              collapsed &&
+                "absolute right-[-12px] bg-zinc-900 border border-zinc-700 shadow-sm z-50 h-6 w-6 rounded-full"
+              // Opsiyonel: Kapalıyken butonu sidebar'ın dışına (çizgi üzerine) taşıdım.
+              // Bu çok şık bir "Dashboard" hareketidir. Beğenmezsen 'absolute...' kısmını sil.
+            )}
           >
             {collapsed ? (
-              <ChevronRight size={14} />
+              <ChevronRight size={12} />
             ) : (
               <ChevronDown size={14} className="rotate-90" />
             )}

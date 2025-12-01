@@ -2,19 +2,27 @@ import { useEffect, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
 import {
   pipelineTemplatesApi,
-  STAGE_TYPES,
   type PipelineTemplateListDto,
   type SavePipelineTemplateDto,
   type StageConfigDto,
 } from "../api/pipelineTemplates";
-import { conceptsApi, type ConceptListDto } from "../api/concepts"; // Konsept seçimi için
+import { conceptsApi } from "../api/concepts";
+
+// 🔥 TÜM PRESET API'LERİNİ ÇAĞIRIYORUZ (Dinamik liste için)
+import { topicPresetsApi } from "../api/topicPresets";
+import { scriptPresetsApi } from "../api/scriptPresets";
+import { imagePresetsApi } from "../api/imagePresets";
+import { ttsPresetsApi } from "../api/ttsPresets";
+import { sttPresetsApi } from "../api/sttPresets";
+import { videoPresetsApi } from "../api/videoPresets";
+import { renderPresetsApi } from "../api/renderPresets";
+
 import toast from "react-hot-toast";
 import {
   Page,
   Card,
   Button,
   Input,
-  Textarea,
   Label,
   Badge,
   Table,
@@ -24,7 +32,6 @@ import {
   TD,
   Modal,
   Select,
-  NumberInput,
 } from "../components/ui-kit";
 import {
   Plus,
@@ -37,8 +44,21 @@ import {
   ArrowDown,
   GripVertical,
   FolderOpen,
-  FileText,
+  AlertTriangle,
 } from "lucide-react";
+
+// Backend Enum'ı ile eşleşen Tipler
+const STAGE_TYPES = [
+  { value: "Topic", label: "Konu (Topic)" },
+  { value: "Script", label: "Senaryo (Script)" },
+  { value: "Image", label: "Görsel (Image)" },
+  { value: "Tts", label: "Seslendirme (TTS)" },
+  { value: "Stt", label: "Deşifre (STT)" },
+  { value: "Video", label: "Video Üretimi" },
+  { value: "SceneLayout", label: "Kurgu/Timeline" },
+  { value: "Render", label: "Render (Birleştirme)" },
+  { value: "Upload", label: "Yükleme (YouTube vs)" },
+];
 
 const EMPTY_FORM: SavePipelineTemplateDto = {
   name: "",
@@ -48,7 +68,7 @@ const EMPTY_FORM: SavePipelineTemplateDto = {
 };
 
 export default function PipelineTemplatesPage() {
-  // --- STATE ---
+  // --- MAIN STATE ---
   const [items, setItems] = useState<PipelineTemplateListDto[]>([]);
   const [concepts, setConcepts] = useState<{ label: string; value: string }[]>(
     []
@@ -60,14 +80,19 @@ export default function PipelineTemplatesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm] = useState<SavePipelineTemplateDto>(EMPTY_FORM);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Stage Ekleme State'i
+  // --- STAGE BUILDER STATE ---
   const [selectedStageType, setSelectedStageType] = useState<string>("Topic");
   const [selectedPresetId, setSelectedPresetId] = useState<number>(0);
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  // Dinamik Preset Listesi
+  const [availablePresets, setAvailablePresets] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [presetLoading, setPresetLoading] = useState(false);
 
-  // --- LOAD ---
+  // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
     try {
@@ -90,7 +115,62 @@ export default function PipelineTemplatesPage() {
     loadData();
   }, [debouncedSearch]);
 
-  // --- SELECT & FORM ---
+  // --- DİNAMİK PRESET GETİRME ---
+  useEffect(() => {
+    const fetchPresets = async () => {
+      setPresetLoading(true);
+      setAvailablePresets([]); // Listeyi temizle
+      setSelectedPresetId(0); // Seçimi sıfırla
+
+      try {
+        let data: any[] = [];
+
+        // Seçilen tipe göre ilgili API'ye git
+        switch (selectedStageType) {
+          case "Topic":
+            data = await topicPresetsApi.list();
+            break;
+          case "Script":
+            data = await scriptPresetsApi.list();
+            break;
+          case "Image":
+            data = await imagePresetsApi.list();
+            break;
+          case "Tts":
+            data = await ttsPresetsApi.list();
+            break;
+          case "Stt":
+            data = await sttPresetsApi.list();
+            break;
+          case "Video":
+            data = await videoPresetsApi.list();
+            break;
+          case "Render":
+            data = await renderPresetsApi.list();
+            break;
+          // SceneLayout, Upload gibi preset gerektirmeyenler boş kalır
+          default:
+            data = [];
+            break;
+        }
+
+        setAvailablePresets(
+          data.map((d) => ({
+            label: d.name,
+            value: d.id.toString(),
+          }))
+        );
+      } catch (error) {
+        console.error("Presetler çekilemedi", error);
+      } finally {
+        setPresetLoading(false);
+      }
+    };
+
+    fetchPresets();
+  }, [selectedStageType]);
+
+  // --- FORM HANDLERS ---
   const handleSelect = async (id: number) => {
     if (id === selectedId) return;
     setSelectedId(id);
@@ -101,7 +181,8 @@ export default function PipelineTemplatesPage() {
         name: data.name,
         description: data.description ?? "",
         conceptId: data.conceptId,
-        stages: data.stages.sort((a, b) => a.order - b.order), // Sıralı gelsin
+        // Sıralamayı garantiye al
+        stages: data.stages.sort((a, b) => a.order - b.order),
       });
     } catch {
       toast.error("Detay yüklenemedi.");
@@ -113,23 +194,33 @@ export default function PipelineTemplatesPage() {
   const handleNew = () => {
     setSelectedId(null);
     setForm(EMPTY_FORM);
+    setSelectedStageType("Topic"); // Reset to default
+    setAvailablePresets([]);
   };
 
-  // --- STAGE YÖNETİMİ (Local State) ---
+  // --- STAGE İŞLEMLERİ ---
   const addStage = () => {
+    // Validasyon: Eğer preset listesi doluysa ve seçim yapılmadıysa
+    if (availablePresets.length > 0 && selectedPresetId === 0) {
+      toast.error("Lütfen bir Preset seçin.");
+      return;
+    }
+
     const newStage: StageConfigDto = {
       stageType: selectedStageType,
       order: form.stages.length + 1,
       presetId: selectedPresetId > 0 ? selectedPresetId : undefined,
     };
+
     setForm((prev) => ({ ...prev, stages: [...prev.stages, newStage] }));
-    // Reset inputs
+
+    // Seçimi sıfırla ama tipi koru (seri ekleme için kolaylık)
     setSelectedPresetId(0);
   };
 
   const removeStage = (index: number) => {
     const newStages = form.stages.filter((_, i) => i !== index);
-    // Sıra numaralarını düzelt
+    // Sıraları güncelle (1, 2, 3...)
     newStages.forEach((s, i) => (s.order = i + 1));
     setForm((prev) => ({ ...prev, stages: newStages }));
   };
@@ -147,19 +238,19 @@ export default function PipelineTemplatesPage() {
       newStages[index],
     ];
 
-    // Sıra numaralarını düzelt
+    // Sıraları güncelle
     newStages.forEach((s, i) => (s.order = i + 1));
     setForm((prev) => ({ ...prev, stages: newStages }));
   };
 
-  // --- SAVE ---
+  // --- KAYIT ---
   const handleSave = async () => {
     if (!form.name.trim() || !form.conceptId) {
-      toast.error("Ad ve Konsept zorunludur.");
+      toast.error("Şablon Adı ve Konsept zorunludur.");
       return;
     }
     if (form.stages.length === 0) {
-      toast.error("En az bir aşama (Stage) eklemelisiniz.");
+      toast.error("En az bir işlem adımı (Stage) eklemelisiniz.");
       return;
     }
 
@@ -173,7 +264,7 @@ export default function PipelineTemplatesPage() {
         toast.success("Oluşturuldu.");
         handleNew();
       }
-      loadData(); // Listeyi tazele
+      loadData();
     } catch {
       toast.error("Kayıt başarısız.");
     } finally {
@@ -197,10 +288,15 @@ export default function PipelineTemplatesPage() {
     }
   };
 
+  // Filtreleme (Client side)
+  const filteredItems = items.filter((i) =>
+    i.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
+
   return (
     <Page>
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
-        {/* SOL: LİSTE (8 BİRİM) */}
+        {/* === SOL: LİSTE (8 BİRİM) === */}
         <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
           <div className="flex justify-between items-center gap-2 shrink-0">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
@@ -252,7 +348,7 @@ export default function PipelineTemplatesPage() {
                   </TR>
                 </THead>
                 <tbody>
-                  {items.map((item) => (
+                  {filteredItems.map((item) => (
                     <TR
                       key={item.id}
                       onClick={() => handleSelect(item.id)}
@@ -272,7 +368,7 @@ export default function PipelineTemplatesPage() {
                       </TD>
                       <TD className="text-center text-zinc-500 text-xs py-3">
                         <Badge variant="neutral" className="scale-90">
-                          {item.stageCount} Stage
+                          {item.stageCount} Adım
                         </Badge>
                       </TD>
                       <TD className="text-right text-zinc-500 text-xs py-3 font-mono">
@@ -280,7 +376,7 @@ export default function PipelineTemplatesPage() {
                       </TD>
                     </TR>
                   ))}
-                  {items.length === 0 && !loading && (
+                  {filteredItems.length === 0 && !loading && (
                     <TR>
                       <TD
                         colSpan={4}
@@ -293,16 +389,27 @@ export default function PipelineTemplatesPage() {
                 </tbody>
               </Table>
             </div>
+            <div className="p-2 border-t border-zinc-800 bg-zinc-900/50 text-xs text-zinc-500 text-center shrink-0">
+              Toplam {filteredItems.length} kayıt
+            </div>
           </Card>
         </div>
 
         {/* === SAĞ: FORM (4 BİRİM) === */}
         <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-0">
           <Card className="h-full flex flex-col overflow-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0">
+            {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-zinc-800/50 shrink-0 bg-zinc-900/30">
-              <h2 className="text-md font-bold text-white tracking-tight">
-                {selectedId ? "Şablonu Düzenle" : "Yeni Şablon"}
-              </h2>
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-1.5 h-6 rounded-full shadow-lg ${
+                    selectedId ? "bg-indigo-500" : "bg-emerald-500"
+                  }`}
+                />
+                <h2 className="text-md font-bold text-white tracking-tight">
+                  {selectedId ? "Şablonu Düzenle" : "Yeni Şablon"}
+                </h2>
+              </div>
               {selectedId && (
                 <Badge variant="neutral" className="text-[10px]">
                   #{selectedId}
@@ -359,18 +466,22 @@ export default function PipelineTemplatesPage() {
                   </div>
 
                   {/* --- STAGE BUILDER --- */}
-                  <div className="pt-2 border-t border-zinc-800/50">
+                  <div className="pt-4 mt-2 border-t border-zinc-800/50">
                     <Label className="mb-2 flex items-center justify-between">
-                      <span>Pipeline Adımları</span>
+                      <span className="flex items-center gap-1">
+                        <Layers size={12} /> Pipeline Adımları
+                      </span>
                       <span className="text-[10px] text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
                         {form.stages.length} Adım
                       </span>
                     </Label>
 
-                    {/* Adım Ekleme Alanı */}
-                    <div className="flex items-end gap-2 mb-4 p-2 rounded-xl bg-zinc-950/30 border border-zinc-800/50">
-                      <div className="flex-1">
-                        <Label className="text-[10px] mb-1">Tip</Label>
+                    {/* Adım Ekleme Alanı (Kompakt Grid) */}
+                    <div className="flex items-end gap-2 mb-4 p-2.5 rounded-xl bg-zinc-950/30 border border-zinc-800/50">
+                      <div className="w-1/3">
+                        <Label className="text-[10px] mb-1 text-zinc-500">
+                          Tip
+                        </Label>
                         <Select
                           value={selectedStageType}
                           onChange={setSelectedStageType}
@@ -378,88 +489,114 @@ export default function PipelineTemplatesPage() {
                           className="h-8 text-xs"
                         />
                       </div>
-                      <div className="w-24">
-                        <Label className="text-[10px] mb-1">Preset ID</Label>
-                        <NumberInput
-                          value={selectedPresetId}
-                          onChange={setSelectedPresetId}
-                          placeholder="ID"
+
+                      <div className="flex-1 min-w-0">
+                        <Label className="text-[10px] mb-1 text-zinc-500 flex items-center gap-1">
+                          {presetLoading && (
+                            <RefreshCw size={8} className="animate-spin" />
+                          )}
+                          Preset (Ayar)
+                        </Label>
+                        <Select
+                          value={selectedPresetId.toString()}
+                          onChange={(val) => setSelectedPresetId(Number(val))}
+                          options={availablePresets}
+                          placeholder={
+                            availablePresets.length > 0
+                              ? "Seçiniz..."
+                              : "Gerekmiyor"
+                          }
+                          className="h-8 text-xs"
+                          // Gerekmiyorsa disabled yap
+                          // disabled={availablePresets.length === 0}
                         />
                       </div>
+
                       <Button
                         size="sm"
                         onClick={addStage}
-                        className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 text-white border-none"
+                        className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg shadow-indigo-500/20 shrink-0"
                       >
                         <Plus size={14} />
                       </Button>
                     </div>
 
-                    {/* Adım Listesi (Drag & Drop Simülasyonu) */}
+                    {/* Adım Listesi */}
                     <div className="space-y-2">
                       {form.stages.length === 0 && (
-                        <div className="text-center py-8 text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-xl">
-                          Henüz adım eklenmedi.
+                        <div className="text-center py-8 text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-xl bg-zinc-900/20">
+                          Henüz adım eklenmedi. <br /> Yukarıdan tip seçip
+                          ekleyin.
                         </div>
                       )}
 
-                      {form.stages.map((stage, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 p-2 rounded-lg border border-zinc-800 bg-zinc-900/80 group hover:border-zinc-700 transition-all"
-                        >
-                          <div className="flex flex-col items-center justify-center w-6 text-zinc-600 cursor-grab active:cursor-grabbing">
-                            <GripVertical size={14} />
-                            <span className="text-[9px] font-mono font-bold mt-0.5">
-                              {idx + 1}
-                            </span>
-                          </div>
+                      {form.stages.map((stage, idx) => {
+                        const stageLabel =
+                          STAGE_TYPES.find((t) => t.value === stage.stageType)
+                            ?.label || stage.stageType;
+                        // Preset adını bilmiyoruz (sadece ID var), ama UI'da ID göstermek yeterli.
+                        // İleride istersen "loadedPresets" diye bir map tutabiliriz ama şimdilik ID yeterli.
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-zinc-200">
-                                {STAGE_TYPES.find(
-                                  (t) => t.value === stage.stageType
-                                )?.label || stage.stageType}
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 p-2 rounded-lg border border-zinc-800 bg-zinc-900/80 group hover:border-zinc-700 transition-all"
+                          >
+                            <div className="flex flex-col items-center justify-center w-6 text-zinc-600 cursor-grab active:cursor-grabbing select-none">
+                              <GripVertical size={14} />
+                              <span className="text-[9px] font-mono font-bold mt-0.5 text-zinc-700 group-hover:text-zinc-500">
+                                {idx + 1}
                               </span>
-                              {stage.presetId && (
-                                <Badge
-                                  variant="brand"
-                                  className="text-[9px] py-0 h-4 px-1.5"
-                                >
-                                  Preset: #{stage.presetId}
-                                </Badge>
-                              )}
                             </div>
-                          </div>
 
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-1">
-                            <div className="flex flex-col gap-0.5">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-zinc-200 truncate">
+                                  {stageLabel}
+                                </span>
+                                {stage.presetId ? (
+                                  <Badge
+                                    variant="brand"
+                                    className="text-[9px] py-0 h-4 px-1.5 font-mono"
+                                  >
+                                    #{stage.presetId}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[9px] text-zinc-600 italic">
+                                    default
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                              <div className="flex flex-col gap-0.5">
+                                <button
+                                  onClick={() => moveStage(idx, "up")}
+                                  disabled={idx === 0}
+                                  className="p-0.5 text-zinc-500 hover:text-white disabled:opacity-10 disabled:cursor-not-allowed"
+                                >
+                                  <ArrowUp size={10} />
+                                </button>
+                                <button
+                                  onClick={() => moveStage(idx, "down")}
+                                  disabled={idx === form.stages.length - 1}
+                                  className="p-0.5 text-zinc-500 hover:text-white disabled:opacity-10 disabled:cursor-not-allowed"
+                                >
+                                  <ArrowDown size={10} />
+                                </button>
+                              </div>
                               <button
-                                onClick={() => moveStage(idx, "up")}
-                                disabled={idx === 0}
-                                className="p-0.5 text-zinc-500 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed"
+                                onClick={() => removeStage(idx)}
+                                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded ml-1 transition-colors"
                               >
-                                <ArrowUp size={12} />
-                              </button>
-                              <button
-                                onClick={() => moveStage(idx, "down")}
-                                disabled={idx === form.stages.length - 1}
-                                className="p-0.5 text-zinc-500 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed"
-                              >
-                                <ArrowDown size={12} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
-                            <button
-                              onClick={() => removeStage(idx)}
-                              className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded ml-1"
-                            >
-                              <Trash2 size={14} />
-                            </button>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </>
@@ -490,22 +627,27 @@ export default function PipelineTemplatesPage() {
                 onClick={handleSave}
                 className="shadow-lg shadow-indigo-600/20 bg-indigo-600 hover:bg-indigo-500 text-white border-none h-9 px-4 text-xs"
               >
-                <Save size={14} className="mr-1.5" /> Kaydet
+                <Save size={14} className="mr-1.5" />{" "}
+                {selectedId ? "Kaydet" : "Oluştur"}
               </Button>
             </div>
           </Card>
         </div>
       </div>
 
+      {/* Modals */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Silinsin mi?"
+        title="Şablon Silinsin mi?"
       >
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-zinc-300">
-            <b>"{form.name}"</b> şablonu silinecek.
-          </p>
+          <div className="flex items-center gap-3 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+            <AlertTriangle className="text-red-500 shrink-0" size={24} />
+            <p className="text-sm text-zinc-300">
+              <b>"{form.name}"</b> şablonu silinecek.
+            </p>
+          </div>
           <div className="flex justify-end gap-3 mt-2">
             <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
               İptal
