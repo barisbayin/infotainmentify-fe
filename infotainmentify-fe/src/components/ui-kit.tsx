@@ -505,7 +505,7 @@ export function Select({
   );
 }
 
-/* ----------------------- JSON INPUT (Code Editor Style) ----------------------- */
+/* ----------------------- JSON INPUT (Syntax Highlighted) ----------------------- */
 export function JsonInput({
   value,
   onChange,
@@ -520,7 +520,17 @@ export function JsonInput({
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
 
-  // Değer her değiştiğinde validasyon yap
+  // Scroll Senkronizasyonu için Ref'ler
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
+
+  const handleScroll = () => {
+    if (textareaRef.current && highlightRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  };
+
   useEffect(() => {
     if (!value) {
       setError(null);
@@ -531,8 +541,8 @@ export function JsonInput({
       JSON.parse(value);
       setError(null);
       setIsValid(true);
-    } catch (e: any) {
-      setError("Geçersiz JSON formatı");
+    } catch {
+      setError("Geçersiz JSON");
       setIsValid(false);
     }
   }, [value]);
@@ -540,74 +550,121 @@ export function JsonInput({
   const handleFormat = () => {
     try {
       const obj = JSON.parse(value);
-      const pretty = JSON.stringify(obj, null, 2); // 2 boşluklu girinti
-      onChange(pretty);
+      onChange(JSON.stringify(obj, null, 2));
       setError(null);
-    } catch (e) {
-      setError("Formatlanamıyor: JSON hatalı");
+    } catch {
+      setError("Formatlanamıyor");
     }
   };
 
+  // Basit JSON Renklendirici (Regex)
+  const highlightJSON = (json: string) => {
+    if (!json) return "";
+
+    // HTML karakterlerini kaçır (XSS önlemi)
+    const safe = json
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    return safe.replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      (match) => {
+        let cls = "text-amber-400"; // Number (Varsayılan)
+
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            cls = "text-sky-400"; // Key
+          } else {
+            cls = "text-emerald-400"; // String Value
+          }
+        } else if (/true|false/.test(match)) {
+          cls = "text-rose-400"; // Boolean
+        } else if (/null/.test(match)) {
+          cls = "text-zinc-500"; // Null
+        }
+        return `<span class="${cls}">${match}</span>`;
+      }
+    );
+  };
+
   return (
-    <div className={cn("relative flex flex-col gap-1", className)}>
-      <div className="relative">
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn(
-            "w-full rounded-xl border bg-zinc-950 px-4 py-3 font-mono text-[11px] leading-relaxed text-zinc-300 transition-all scrollbar-thin scrollbar-thumb-zinc-800",
-            "focus:outline-none focus:ring-2",
-            error
-              ? "border-red-500/50 focus:border-red-500 focus:ring-red-500/20"
-              : isValid
-              ? "border-emerald-500/30 focus:border-indigo-500/50 focus:ring-indigo-500/20"
-              : "border-zinc-800 focus:border-indigo-500/50 focus:ring-indigo-500/20"
-          )}
-          spellCheck={false}
-          placeholder={placeholder}
-          rows={8}
+    <div className={cn("relative flex flex-col gap-1 group", className)}>
+      {/* EDİTÖR ALANI */}
+      <div className="relative flex-1 min-h-0 border border-zinc-800 bg-zinc-950 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-500/50 transition-all">
+        {/* 1. KATMAN: Renkli Kod (Arkada) */}
+        <pre
+          ref={highlightRef}
+          className="absolute inset-0 m-0 p-4 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words overflow-hidden pointer-events-none select-none"
+          aria-hidden="true"
+          dangerouslySetInnerHTML={{
+            __html:
+              highlightJSON(value) ||
+              '<span class="text-zinc-600 opacity-50">' +
+                placeholder +
+                "</span>",
+          }}
         />
 
-        {/* Durum İkonu (Sağ Alt) */}
-        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+        {/* 2. KATMAN: Editör (Önde - Şeffaf) */}
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onScroll={handleScroll}
+          className="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-white font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words resize-none outline-none scrollbar-thin scrollbar-thumb-zinc-800 hover:scrollbar-thumb-zinc-700"
+          spellCheck={false}
+          // Placeholder'ı pre içinde gösteriyoruz, burayı boş bırakıyoruz ki çakışmasın
+        />
+
+        {/* Validasyon Rozeti */}
+        <div className="absolute bottom-3 right-3 pointer-events-none bg-zinc-950/80 backdrop-blur px-2 py-1 rounded border border-zinc-800/50">
           {value && (
             <span
               className={cn(
-                "text-[10px] font-medium",
+                "text-[10px] font-medium flex items-center gap-1.5",
                 isValid ? "text-emerald-500" : "text-red-500"
               )}
             >
-              {isValid ? "Valid JSON" : "Invalid"}
+              {isValid ? <Check size={10} /> : <AlertCircle size={10} />}
+              {isValid ? "Valid JSON" : "Syntax Error"}
             </span>
           )}
         </div>
       </div>
 
-      {/* Araç Çubuğu */}
-      <div className="flex items-center justify-between px-1">
+      {/* TOOLBAR */}
+      <div className="flex items-center justify-between px-1 mt-1 shrink-0">
         <div className="flex items-center gap-2 text-xs">
-          {error ? (
-            <span className="flex items-center gap-1 text-red-400">
+          {error && (
+            <span className="text-red-400 flex items-center gap-1 animate-pulse">
               <AlertCircle size={12} /> {error}
             </span>
-          ) : (
-            <span className="text-zinc-500">JSON formatında veri</span>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={handleFormat}
-          disabled={!value || !!error}
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
-        >
-          <Braces size={12} /> Formatla & Düzenle
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(value);
+            }}
+            className="text-[10px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+          >
+            <Copy size={12} /> Kopyala
+          </button>
+          <button
+            type="button"
+            onClick={handleFormat}
+            disabled={!value}
+            className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors disabled:opacity-50"
+          >
+            <Braces size={12} /> Formatla
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-
 /* ----------------------- NUMBER INPUT ----------------------- */
 export function NumberInput({
   value,
@@ -684,6 +741,47 @@ export function NumberInput({
       >
         <Plus size={14} />
       </button>
+    </div>
+  );
+}
+
+/* ----------------------- CODE VIEWER (Read Only & Colored) ----------------------- */
+export function CodeViewer({
+  value,
+  className,
+}: {
+  value: string;
+  className?: string;
+}) {
+  // JSON Renklendirici (Aynısı)
+  const highlightJSON = (json: string) => {
+    if (!json) return "";
+    const safe = json
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return safe.replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      (match) => {
+        let cls = "text-amber-400";
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) cls = "text-sky-400";
+          else cls = "text-emerald-400";
+        } else if (/true|false/.test(match)) cls = "text-rose-400";
+        else if (/null/.test(match)) cls = "text-zinc-500";
+        return `<span class="${cls}">${match}</span>`;
+      }
+    );
+  };
+
+  return (
+    <div className={cn("relative group h-full w-full", className)}>
+      <div className="absolute inset-0 w-full h-full rounded-xl border border-zinc-800 bg-zinc-950 overflow-hidden">
+        <pre
+          className="w-full h-full p-6 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 text-zinc-300 selection:bg-indigo-500/30"
+          dangerouslySetInnerHTML={{ __html: highlightJSON(value) }}
+        />
+      </div>
     </div>
   );
 }

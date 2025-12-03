@@ -14,6 +14,7 @@ export type TopicDetailDto = {
     title: string;
     premise: string;
     languageCode: string;
+    conceptId?: number;
     category?: string;
     subCategory?: string;
     series?: string;
@@ -29,6 +30,7 @@ export type SaveTopicDto = {
     title: string;
     premise: string;
     languageCode: string;
+    conceptId?: number;
     category?: string;
     subCategory?: string;
     series?: string;
@@ -39,10 +41,14 @@ export type SaveTopicDto = {
 };
 
 export const topicsApi = {
-    list(q?: string, category?: string) {
+    // conceptId parametresi eklendi
+    list(q?: string, category?: string, conceptId?: string) {
         const p = new URLSearchParams();
         if (q) p.set("q", q);
         if (category) p.set("category", category);
+        // 🔥 ID varsa ekle
+        if (conceptId) p.set("conceptId", conceptId);
+
         return http<TopicListDto[]>(`/api/topics?${p.toString()}`);
     },
 

@@ -46,9 +46,10 @@ export type SavePipelineTemplateDto = {
 };
 
 export const pipelineTemplatesApi = {
-    list(q?: string) {
+    list(q?: string, conceptId?: string) { // 🔥 Eklendi
         const p = new URLSearchParams();
         if (q) p.set("q", q);
+        if (conceptId) p.set("conceptId", conceptId);
         return http<PipelineTemplateListDto[]>(`/api/pipeline-templates?${p.toString()}`);
     },
 

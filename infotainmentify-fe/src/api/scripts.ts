@@ -29,10 +29,13 @@ export type SaveScriptDto = {
 };
 
 export const scriptsApi = {
-    list(q?: string, topicId?: number) {
+    // 🔥 GÜNCELLEME: conceptId parametresi eklendi
+    list(q?: string, topicId?: number, conceptId?: number) {
         const p = new URLSearchParams();
         if (q) p.set("q", q);
         if (topicId) p.set("topicId", String(topicId));
+        if (conceptId) p.set("conceptId", String(conceptId)); // Backend bunu bekliyor
+
         return http<ScriptListDto[]>(`/api/scripts?${p.toString()}`);
     },
 

@@ -15,8 +15,8 @@ export type PipelineStageDto = {
 
 export type PipelineRunListDto = {
     id: number;
-    templateName: string; // Join ile gelmeli
-    status: RunStatus;
+    templateName: string; // Backend'den bu isimle geliyor
+    status: string;
     startedAt?: string;
     completedAt?: string;
 };
@@ -36,11 +36,10 @@ export type CreatePipelineRunRequest = {
 };
 
 export const pipelineRunsApi = {
-    list() {
-        // Backend'de list endpoint'i query ile filtre alabilir, şimdilik düz çekiyoruz
-        return http<PipelineRunListDto[]>("/api/pipeline-runs"); // Backend controller'a List endpoint'i eklediğini varsayıyorum
-        // Eğer controllerda List yoksa, şimdilik boş döner veya hata verir, controller'a ekleme gerekebilir.
-        // *Not: Backend Controller adımında List endpointini yazmamış olabiliriz, aşağıda not düşeceğim.*
+    list(conceptId?: string) { // 🔥 Eklendi
+        const p = new URLSearchParams();
+        if (conceptId) p.set("conceptId", conceptId);
+        return http<PipelineRunListDto[]>(`/api/pipeline-runs?${p.toString()}`);
     },
 
     get(id: number) {

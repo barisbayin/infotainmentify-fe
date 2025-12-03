@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
 import { topicsApi, type TopicListDto, type SaveTopicDto } from "../api/topics";
+import { conceptsApi } from "../api/concepts"; // 🔥 Konsept Servisi
 import toast from "react-hot-toast";
 import {
   Page,
@@ -16,6 +17,7 @@ import {
   TH,
   TD,
   Modal,
+  Select,
 } from "../components/ui-kit";
 import {
   Plus,
@@ -23,11 +25,10 @@ import {
   Save,
   Search,
   RefreshCw,
-  X,
   Lightbulb,
   Maximize2,
   Copy,
-  Zap,
+  FolderOpen,
 } from "lucide-react";
 
 // Varsayılan Form
@@ -35,6 +36,7 @@ const EMPTY_FORM: SaveTopicDto = {
   title: "",
   premise: "",
   languageCode: "tr-TR",
+  conceptId: undefined,
   category: "",
   subCategory: "",
   series: "",
@@ -51,6 +53,12 @@ export default function TopicsPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
 
+  // 🔥 KONSEPT FİLTRE STATE
+  const [concepts, setConcepts] = useState<{ label: string; value: string }[]>(
+    []
+  );
+  const [selectedConceptId, setSelectedConceptId] = useState<string>("");
+
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm] = useState<SaveTopicDto>(EMPTY_FORM);
@@ -62,11 +70,32 @@ export default function TopicsPage() {
     content: string;
   } | null>(null);
 
+  // --- INIT (Konseptleri Yükle) ---
+  useEffect(() => {
+    const fetchConcepts = async () => {
+      try {
+        const data = await conceptsApi.list();
+        setConcepts([
+          { label: "Tüm Konseptler", value: "" },
+          ...data.map((c) => ({ label: c.name, value: c.id.toString() })),
+        ]);
+      } catch (err) {
+        console.error("Konseptler yüklenemedi", err);
+      }
+    };
+    fetchConcepts();
+  }, []);
+
   // --- ACTIONS ---
   const loadList = async () => {
     setLoading(true);
     try {
-      const data = await topicsApi.list(debouncedSearch);
+      // 🔥 GÜNCELLEME: selectedConceptId'yi 3. parametre olarak gönderiyoruz
+      const data = await topicsApi.list(
+        debouncedSearch,
+        undefined, // category (şimdilik boş)
+        selectedConceptId // <-- FİLTRE BURADA GİDİYOR
+      );
       setItems(data);
     } catch {
       toast.error("Liste yüklenemedi");
@@ -78,7 +107,7 @@ export default function TopicsPage() {
   useEffect(() => {
     loadList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+  }, [debouncedSearch, selectedConceptId]); // Filtre değişince tetikle
 
   const handleSelect = async (id: number) => {
     if (id === selectedId) return;
@@ -90,6 +119,7 @@ export default function TopicsPage() {
         title: data.title,
         premise: data.premise,
         languageCode: data.languageCode ?? "tr-TR",
+        conceptId: data.conceptId ?? undefined,
         category: data.category ?? "",
         subCategory: data.subCategory ?? "",
         series: data.series ?? "",
@@ -159,35 +189,39 @@ export default function TopicsPage() {
     <Page>
       {/* ANA GRID (8-4 Düzeni) */}
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
-        {/* SOL: LİSTE (8 BİRİM) */}
+        {/* === SOL: LİSTE (8 BİRİM) === */}
         <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
           <div className="flex justify-between items-center gap-2 shrink-0">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Zap className="text-indigo-500" /> Fikir Havuzu
+              <Lightbulb className="text-indigo-500" /> Fikir Havuzu
             </h1>
+
             <div className="flex gap-2">
+              {/* 🔥 KONSEPT FİLTRESİ */}
+              <div className="w-48">
+                <Select
+                  value={selectedConceptId}
+                  onChange={setSelectedConceptId}
+                  options={concepts}
+                  placeholder="Konsept Filtrele"
+                  className="h-10 text-xs bg-zinc-900/50 border-zinc-800"
+                />
+              </div>
+
               <div className="relative w-64 group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
                 <Input
                   placeholder="Fikirlerde ara..."
-                  className="pl-9 bg-zinc-900/50 border-zinc-800"
+                  className="pl-9 bg-zinc-900/50 border-zinc-800 h-10"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
               </div>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={loadList}
-                className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+                className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 h-10 w-10"
               >
                 <RefreshCw
                   className={loading ? "animate-spin" : ""}
@@ -196,7 +230,7 @@ export default function TopicsPage() {
               </Button>
               <Button
                 onClick={handleNew}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg px-4"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg px-4 h-10"
               >
                 <Plus size={18} className="mr-2" /> Yeni Fikir
               </Button>
@@ -233,7 +267,7 @@ export default function TopicsPage() {
                       <TD className="font-medium text-zinc-200 py-3">
                         {item.title}
                       </TD>
-                      <TD className="text-zinc-400 py-3">
+                      <TD className="text-zinc-400 py-3 text-sm">
                         {item.category ? (
                           <Badge variant="neutral" className="scale-90">
                             {item.category}
@@ -302,18 +336,38 @@ export default function TopicsPage() {
                 <>
                   {/* Başlık & Dil */}
                   <div className="space-y-4">
-                    <div>
-                      <Label className="mb-1.5">
-                        Fikir Başlığı <span className="text-indigo-400">*</span>
-                      </Label>
-                      <Input
-                        value={form.title}
-                        onChange={(e) =>
-                          setForm({ ...form, title: e.target.value })
-                        }
-                        placeholder="Örn: Kedilerin Mırlama Sırrı"
-                        className="focus:border-indigo-500 bg-zinc-950/50 border-zinc-800 h-9 text-sm"
-                      />
+                    {/* Başlık & Konsept */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {/* Konsept Seçimi (1 Birim) */}
+                      <div>
+                        <Label className="mb-1.5">Bağlı Konsept</Label>
+                        <Select
+                          value={form.conceptId?.toString() || ""}
+                          onChange={(val) =>
+                            setForm({ ...form, conceptId: Number(val) })
+                          }
+                          // Filter ile "Tümü" seçeneğini (value="") kaldırıyoruz, çünkü kayıtta boş olamaz (veya opsiyonel)
+                          options={concepts.filter((c) => c.value !== "")}
+                          placeholder="Seçiniz..."
+                          className="bg-zinc-950/50 border-zinc-800 h-9 text-sm"
+                        />
+                      </div>
+
+                      {/* Fikir Başlığı (2 Birim - Geniş) */}
+                      <div className="col-span-2">
+                        <Label className="mb-1.5">
+                          Fikir Başlığı{" "}
+                          <span className="text-indigo-400">*</span>
+                        </Label>
+                        <Input
+                          value={form.title}
+                          onChange={(e) =>
+                            setForm({ ...form, title: e.target.value })
+                          }
+                          placeholder="Örn: Kedilerin Mırlama Sırrı"
+                          className="focus:border-indigo-500 bg-zinc-900/50 border-zinc-800 h-9 text-sm"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>

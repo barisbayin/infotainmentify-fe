@@ -34,7 +34,9 @@ import {
   AlertTriangle,
   Loader2,
   Activity,
+  Copy,
 } from "lucide-react";
+import { conceptsApi } from "../api/concepts";
 
 export default function PipelineRunsPage() {
   // --- STATE ---
@@ -55,17 +57,20 @@ export default function PipelineRunsPage() {
   // Polling Ref
   const pollRef = useRef<number | null>(null);
 
+  const [concepts, setConcepts] = useState<{ label: string; value: string }[]>(
+    []
+  );
+  const [selectedConceptId, setSelectedConceptId] = useState<string>("");
+
   // --- ACTIONS ---
 
+  // 1. LİSTEYİ YÜKLE (Backend'den geçmişi çek)
   const loadList = async () => {
     setLoading(true);
     try {
-      // Şimdilik list endpoint'i yoksa boş array dönebilir, backend'e eklenmesi lazım.
-      // Mock data ile test edebilirsin veya backend controller'a GetAll eklemelisin.
-      // const data = await pipelineRunsApi.list();
-      // setItems(data);
-      // Backend'de List endpointi eksikse geçici çözüm:
-      // setItems([]);
+      // 🔥 Filtreyi gönder
+      const data = await pipelineRunsApi.list(selectedConceptId);
+      setItems(data);
     } catch {
       toast.error("Geçmiş yüklenemedi");
     } finally {
@@ -88,6 +93,27 @@ export default function PipelineRunsPage() {
     loadTemplates();
     return () => stopPolling();
   }, []);
+
+  // ... Konseptleri Yükle (useEffect)
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const cData = await conceptsApi.list();
+        setConcepts([
+          ...cData.map((c) => ({ label: c.name, value: c.id.toString() })),
+        ]);
+
+        loadList(); // İlk yükleme
+        loadTemplates();
+      } catch {}
+    };
+    init();
+  }, []);
+
+  // ... Filtre değişince yükle
+  useEffect(() => {
+    loadList();
+  }, [selectedConceptId]);
 
   // Polling Başlat/Durdur
   const startPolling = (id: number) => {
@@ -204,14 +230,33 @@ export default function PipelineRunsPage() {
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
               <Activity className="text-indigo-500" /> Üretim Geçmişi
             </h1>
-            <div className="flex gap-2">
+
+            {/* SAĞ GRUP */}
+            <div className="flex items-center gap-2">
+              {/* 🔥 YENİ: KONSEPT FİLTRESİ */}
+              <div className="w-48">
+                <Select
+                  value={selectedConceptId}
+                  onChange={setSelectedConceptId}
+                  options={[
+                    { label: "Tüm Konseptler", value: "" },
+                    ...concepts,
+                  ]}
+                  placeholder="Konsept Filtrele"
+                  className="h-9 text-xs bg-zinc-900/50 border-zinc-800"
+                />
+              </div>
+
               <Button
                 variant="outline"
                 size="icon"
                 onClick={loadList}
                 className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
               >
-                <RefreshCw size={18} />
+                <RefreshCw
+                  className={loading ? "animate-spin" : ""}
+                  size={18}
+                />
               </Button>
               <Button
                 onClick={() => setIsNewModalOpen(true)}
@@ -314,10 +359,44 @@ export default function PipelineRunsPage() {
                         : "-"}
                     </p>
                   </div>
-                  {/* Eğer hata varsa göster */}
+                  {/* HATA GÖSTERİMİ (Geliştirilmiş) */}
                   {detail.errorMessage && (
-                    <div className="max-w-[200px] text-[10px] text-red-400 bg-red-500/10 p-2 rounded border border-red-500/20">
-                      Error: {detail.errorMessage}
+                    <div className="group relative max-w-[300px] cursor-pointer">
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 transition-all hover:bg-red-500/20">
+                        <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                        <div className="flex flex-col gap-1 overflow-hidden">
+                          <span className="text-xs font-bold uppercase tracking-wider">
+                            Hata Oluştu
+                          </span>
+                          <p className="text-[10px] leading-relaxed line-clamp-2 group-hover:line-clamp-none transition-all duration-300">
+                            {detail.errorMessage}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Tooltip benzeri: Tam hata mesajını kopyalamak için */}
+                      <div className="absolute top-full right-0 mt-2 w-96 p-4 bg-zinc-900 border border-red-500/30 rounded-xl shadow-2xl z-50 hidden group-hover:block animate-in fade-in slide-in-from-top-2">
+                        <div className="flex justify-between items-center mb-2 border-b border-red-500/20 pb-2">
+                          <span className="text-xs font-bold text-red-400">
+                            Hata Detayı
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(
+                                detail.errorMessage || ""
+                              );
+                              toast.success("Hata kopyalandı");
+                            }}
+                            className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1"
+                          >
+                            <Copy size={10} /> Kopyala
+                          </button>
+                        </div>
+                        <div className="max-h-60 overflow-auto font-mono text-[10px] text-red-300 whitespace-pre-wrap scrollbar-thin scrollbar-thumb-red-900">
+                          {detail.errorMessage}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

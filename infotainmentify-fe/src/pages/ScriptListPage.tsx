@@ -5,6 +5,7 @@ import {
   type ScriptListDto,
   type SaveScriptDto,
 } from "../api/scripts";
+import { conceptsApi } from "../api/concepts"; // 🔥 KONSEPT SERVİSİ EKLENDİ
 import toast from "react-hot-toast";
 import {
   Page,
@@ -12,6 +13,7 @@ import {
   Button,
   Input,
   Textarea,
+  Label,
   Badge,
   Table,
   THead,
@@ -20,6 +22,8 @@ import {
   TD,
   Modal,
   JsonInput,
+  Select,
+  CodeViewer,
 } from "../components/ui-kit";
 import {
   Trash2,
@@ -36,6 +40,7 @@ import {
   FileText,
   LayoutList,
   Code,
+  Filter,
 } from "lucide-react";
 
 const EMPTY_FORM: SaveScriptDto = {
@@ -47,15 +52,22 @@ const EMPTY_FORM: SaveScriptDto = {
   topicId: undefined,
 };
 
-// Basit Tab Tipi
 type TabType = "text" | "scenes" | "raw";
 
 export default function ScriptsPage() {
+  // --- STATE ---
   const [items, setItems] = useState<ScriptListDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
 
+  // 🔥 KONSEPT FİLTRE STATE
+  const [concepts, setConcepts] = useState<{ label: string; value: string }[]>(
+    []
+  );
+  const [selectedConceptId, setSelectedConceptId] = useState<string>("");
+
+  // Detay & Form
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm] = useState<SaveScriptDto>(EMPTY_FORM);
@@ -68,7 +80,7 @@ export default function ScriptsPage() {
     content: string;
   } | null>(null);
 
-  // Scenes JSON Parse Edilmiş Hali (Görselleştirme için)
+  // --- PARSED SCENES (Görselleştirme için) ---
   const parsedScenes = useMemo(() => {
     try {
       return form.scenesJson ? JSON.parse(form.scenesJson) : [];
@@ -77,10 +89,35 @@ export default function ScriptsPage() {
     }
   }, [form.scenesJson]);
 
+  // --- ACTIONS ---
+
+  // 1. Konseptleri Yükle (Sayfa açılışında 1 kere)
+  useEffect(() => {
+    const fetchConcepts = async () => {
+      try {
+        const data = await conceptsApi.list();
+        // Dropdown formatına çevir ve başına "Tümü" ekle
+        setConcepts([
+          { label: "Tüm Konseptler", value: "" },
+          ...data.map((c) => ({ label: c.name, value: c.id.toString() })),
+        ]);
+      } catch (err) {
+        console.error("Konseptler yüklenemedi", err);
+      }
+    };
+    fetchConcepts();
+  }, []);
+
+  // 2. Listeyi Yükle (Arama veya Filtre değişince)
   const loadList = async () => {
     setLoading(true);
     try {
-      const data = await scriptsApi.list(debouncedSearch);
+      // 🔥 DÜZELTME: Parametreleri API'ye paslıyoruz
+      const data = await scriptsApi.list(
+        debouncedSearch, // q (Arama)
+        undefined, // topicId (Şimdilik filtre yok, null geçiyoruz)
+        selectedConceptId ? Number(selectedConceptId) : undefined // conceptId (Varsa gönder)
+      );
       setItems(data);
     } catch {
       toast.error("Senaryolar yüklenemedi");
@@ -91,23 +128,41 @@ export default function ScriptsPage() {
 
   useEffect(() => {
     loadList();
-  }, [debouncedSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, selectedConceptId]); // Filtre değişince tetikle
 
+  useEffect(() => {
+    handleNew(); // Seçimi kaldırır, formu temizler (EMPTY_FORM basar)
+  }, [selectedConceptId]);
+
+  // Detay Getir
   const handleSelect = async (id: number) => {
     if (id === selectedId) return;
     setSelectedId(id);
     setDetailLoading(true);
     try {
       const data = await scriptsApi.get(id);
+
+      // 🔥 JSON FORMATLAMA MANTIĞI
+      let prettyScenes = data.scenesJson ?? "";
+      try {
+        if (prettyScenes) {
+          const parsed = JSON.parse(prettyScenes);
+          prettyScenes = JSON.stringify(parsed, null, 2); // 2 boşluklu indent
+        }
+      } catch {
+        /* Hatalıysa olduğu gibi kalsın */
+      }
+
       setForm({
         title: data.title,
         content: data.content,
         languageCode: data.languageCode,
         estimatedDurationSec: data.estimatedDurationSec,
-        scenesJson: data.scenesJson ?? "",
+        scenesJson: prettyScenes, // 🔥 Formatlanmış hali
         topicId: data.topicId,
       });
-      setActiveTab("text"); // Varsayılan tab
+      setActiveTab("text");
     } catch {
       toast.error("Detay yüklenemedi.");
     } finally {
@@ -115,8 +170,9 @@ export default function ScriptsPage() {
     }
   };
 
+  // Kaydet
   const handleSave = async () => {
-    if (!selectedId) return; // Yeni oluşturma genelde AI job ile olur
+    if (!selectedId) return;
     setDetailLoading(true);
     try {
       await scriptsApi.update(selectedId, form);
@@ -129,6 +185,7 @@ export default function ScriptsPage() {
     }
   };
 
+  // Sil
   const confirmDelete = async () => {
     if (!selectedId) return;
     setDetailLoading(true);
@@ -146,6 +203,12 @@ export default function ScriptsPage() {
     }
   };
 
+  const handleNew = () => {
+    setSelectedId(null);
+    setForm(EMPTY_FORM);
+    setActiveTab("text"); // Tab'i de varsayılana döndür
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Kopyalandı!");
@@ -154,25 +217,39 @@ export default function ScriptsPage() {
   return (
     <Page>
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
-        {/* === SOL: LİSTE (8 BİRİM) === */}
+        {/* === SOL: LİSTE PANELİ (8 BİRİM) === */}
         <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
           <div className="flex justify-between items-center gap-2 shrink-0">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
               <BookOpen className="text-indigo-500" /> Senaryo Havuzu
             </h1>
-            <div className="flex gap-2 relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <Input
-                placeholder="Senaryo ara..."
-                className="pl-9 bg-zinc-900/50 border-zinc-800"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+
+            <div className="flex gap-2">
+              {/* 🔥 KONSEPT FİLTRESİ */}
+              <div className="w-48">
+                <Select
+                  value={selectedConceptId}
+                  onChange={setSelectedConceptId}
+                  options={concepts}
+                  placeholder="Konsept Filtrele"
+                  className="h-10 text-xs bg-zinc-900/50 border-zinc-800"
+                />
+              </div>
+
+              <div className="relative w-64 group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Input
+                  placeholder="Senaryo ara..."
+                  className="pl-9 bg-zinc-900/50 border-zinc-800 h-10"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={loadList}
-                className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 shrink-0"
+                className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 h-10 w-10"
               >
                 <RefreshCw
                   className={loading ? "animate-spin" : ""}
@@ -193,7 +270,7 @@ export default function ScriptsPage() {
                       Süre
                     </TH>
                     <TH className="text-zinc-400 font-medium text-right">
-                      Oluşturulma
+                      Tarih
                     </TH>
                   </TR>
                 </THead>
@@ -238,7 +315,7 @@ export default function ScriptsPage() {
                         className="text-center py-16 text-zinc-500 flex flex-col items-center justify-center gap-2"
                       >
                         <BookOpen size={32} className="opacity-20" />
-                        <span>Henüz üretilmiş bir senaryo yok.</span>
+                        <span>Henüz senaryo yok.</span>
                       </TD>
                     </TR>
                   )}
@@ -251,14 +328,14 @@ export default function ScriptsPage() {
           </Card>
         </div>
 
-        {/* === SAĞ: İNCELEME PANELİ (REVIEW MODE) === */}
+        {/* === SAĞ: İNCELEME PANELİ (4 BİRİM) === */}
         <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-0">
           <Card className="h-full flex flex-col overflow-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0">
             {selectedId ? (
               <>
-                {/* Header: Bilgi Kartı */}
+                {/* Header & Metadata */}
                 <div className="p-5 border-b border-zinc-800/50 shrink-0 bg-zinc-900/30 space-y-4">
-                  {/* Başlık Input (Editlenebilir) */}
+                  {/* Başlık Input */}
                   <div>
                     <label className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1 block">
                       Senaryo Başlığı
@@ -272,7 +349,7 @@ export default function ScriptsPage() {
                     />
                   </div>
 
-                  {/* Metadata Chips (Grid) */}
+                  {/* Chips */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center gap-2 p-2 rounded-lg bg-zinc-950/50 border border-zinc-800">
                       <Globe size={14} className="text-zinc-400" />
@@ -309,7 +386,7 @@ export default function ScriptsPage() {
                     </div>
                   </div>
 
-                  {/* TABS (Görünüm Değiştirici) */}
+                  {/* TABS */}
                   <div className="flex p-1 bg-zinc-950 rounded-lg border border-zinc-800">
                     <button
                       onClick={() => setActiveTab("text")}
@@ -352,12 +429,12 @@ export default function ScriptsPage() {
                     </div>
                   ) : (
                     <>
-                      {/* TAB 1: DÜZ METİN */}
+                      {/* TEXT TAB */}
                       {activeTab === "text" && (
                         <div className="h-full flex flex-col">
                           <div className="flex justify-between mb-2">
                             <label className="text-xs font-medium text-zinc-500">
-                              Tam Metin (Okuma Modu)
+                              Tam Metin
                             </label>
                             <button
                               onClick={() =>
@@ -377,12 +454,11 @@ export default function ScriptsPage() {
                               setForm({ ...form, content: e.target.value })
                             }
                             className="flex-1 resize-none bg-zinc-950 border-zinc-800 focus:ring-indigo-500/20 font-serif text-sm leading-relaxed p-4"
-                            placeholder="Senaryo metni..."
                           />
                         </div>
                       )}
 
-                      {/* TAB 2: SAHNELER (VISUAL MODE) */}
+                      {/* SCENES TAB (FIXED) */}
                       {activeTab === "scenes" && (
                         <div className="space-y-3">
                           {Array.isArray(parsedScenes) &&
@@ -397,25 +473,38 @@ export default function ScriptsPage() {
                                     variant="neutral"
                                     className="text-[10px]"
                                   >
-                                    Sahne {scene.scene || idx + 1}
+                                    Sahne{" "}
+                                    {scene.scene || scene.Scene || idx + 1}
                                   </Badge>
-                                  {scene.duration && (
+                                  {(scene.duration || scene.Duration) && (
                                     <span className="text-[10px] text-zinc-500 font-mono">
-                                      {scene.duration}s
+                                      {scene.duration || scene.Duration}s
                                     </span>
                                   )}
                                 </div>
+
+                                {/* 🔥 SES METNİ DÜZELTME */}
                                 <div className="text-xs text-zinc-300 mb-2 font-medium">
                                   <span className="text-indigo-400 mr-1">
                                     🔊
-                                  </span>{" "}
-                                  {scene.audio || scene.text || "Ses yok"}
+                                  </span>
+                                  {scene.audio ||
+                                    scene.Audio ||
+                                    scene.audioText ||
+                                    scene.AudioText ||
+                                    "Ses yok"}
                                 </div>
+
+                                {/* 🔥 GÖRSEL PROMPT DÜZELTME */}
                                 <div className="text-[11px] text-zinc-500 italic bg-zinc-950/50 p-2 rounded border border-zinc-800/50">
                                   <span className="text-emerald-500/70 mr-1">
                                     🖼️
-                                  </span>{" "}
-                                  {scene.visual || "Görsel tanımı yok"}
+                                  </span>
+                                  {scene.visual ||
+                                    scene.Visual ||
+                                    scene.visualPrompt ||
+                                    scene.VisualPrompt ||
+                                    "Görsel tanımı yok"}
                                 </div>
                               </div>
                             ))
@@ -425,7 +514,8 @@ export default function ScriptsPage() {
                                 size={24}
                                 className="mb-2 opacity-50"
                               />
-                              Sahne verisi bulunamadı veya JSON hatalı.
+                              Görselleştirilecek sahne verisi bulunamadı. JSON'ı
+                              kontrol edin.
                             </div>
                           )}
                         </div>
@@ -433,8 +523,10 @@ export default function ScriptsPage() {
 
                       {/* TAB 3: RAW JSON */}
                       {activeTab === "raw" && (
-                        <div className="h-full flex flex-col">
-                          <div className="flex justify-between mb-2">
+                        <div className="h-full flex flex-col min-h-0">
+                          {" "}
+                          {/* min-h-0 önemli */}
+                          <div className="flex justify-between mb-2 shrink-0">
                             <label className="text-xs font-medium text-zinc-500">
                               Scenes JSON (Düzenle)
                             </label>
@@ -450,13 +542,14 @@ export default function ScriptsPage() {
                               <Maximize2 size={12} /> Genişlet
                             </button>
                           </div>
+                          {/* 🔥 JSON INPUT ARTIK TAM BOY */}
                           <JsonInput
                             value={form.scenesJson || ""}
                             onChange={(val) =>
                               setForm({ ...form, scenesJson: val })
                             }
                             placeholder="[]"
-                            className="flex-1"
+                            className="flex-1 h-full"
                           />
                         </div>
                       )}
@@ -486,42 +579,32 @@ export default function ScriptsPage() {
                 </div>
               </>
             ) : (
-              // BOŞ DURUM (HİÇBİR ŞEY SEÇİLİ DEĞİLSE)
+              // Empty State
               <div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-3 p-8 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-inner">
                   <BookOpen size={32} className="opacity-20" />
                 </div>
                 <p className="text-sm font-medium">Bir senaryo seçin</p>
-                <p className="text-xs max-w-[200px] leading-relaxed">
-                  Listeden bir kayıt seçerek detaylarını inceleyebilir ve
-                  düzenleyebilirsiniz.
-                </p>
               </div>
             )}
           </Card>
         </div>
       </div>
 
-      {/* SİLME MODALI */}
+      {/* Modallar (Silme & Preview) Aynı */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Senaryo Silinsin mi?"
+        title="Silinsin mi?"
       >
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-zinc-300">
-            <b>"{form.title}"</b> silinecek. Geri alınamaz.
-          </p>
-          <div className="flex justify-end gap-3 mt-2">
+          <p className="text-sm text-zinc-300">Geri alınamaz işlem.</p>
+          <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
               İptal
             </Button>
-            <Button
-              variant="danger"
-              onClick={confirmDelete}
-              isLoading={detailLoading}
-            >
-              Evet, Sil
+            <Button variant="danger" onClick={confirmDelete}>
+              Evet
             </Button>
           </div>
         </div>
@@ -535,13 +618,20 @@ export default function ScriptsPage() {
         maxWidth="4xl"
       >
         <div className="flex flex-col gap-4">
-          <div className="relative group">
-            <div className="w-full h-[60vh] p-6 bg-zinc-950 border border-zinc-800 rounded-xl font-mono text-sm text-zinc-300 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words leading-relaxed shadow-inner">
-              {previewModal?.content}
-            </div>
+          <div className="relative h-[60vh]">
+            {" "}
+            {/* Yükseklik burada verilmeli */}
+            {/* 🔥 ESKİ DIV YERİNE BU GELDİ */}
+            <CodeViewer value={previewModal?.content || ""} />
+            {/* Kopyala Butonu */}
+            {/* Kopyala Butonu (Her zaman görünür, sağ üstte asılı) */}
             <button
-              onClick={() => copyToClipboard(previewModal?.content || "")}
-              className="absolute top-4 right-4 p-2 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-lg transition-all border border-zinc-700 opacity-50 group-hover:opacity-100 backdrop-blur-sm"
+              onClick={() => {
+                navigator.clipboard.writeText(previewModal?.content || "");
+                toast.success("Panoya kopyalandı!"); // Toast mesajını garantiye al
+              }}
+              className="absolute top-4 right-4 p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-lg transition-colors border border-zinc-700 z-50 shadow-lg"
+              title="Kopyala"
             >
               <Copy size={16} />
             </button>

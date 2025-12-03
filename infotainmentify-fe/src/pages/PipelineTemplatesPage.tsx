@@ -92,12 +92,15 @@ export default function PipelineTemplatesPage() {
   >([]);
   const [presetLoading, setPresetLoading] = useState(false);
 
+  const [selectedConceptId, setSelectedConceptId] = useState<string>("");
+
   // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
     try {
       const [templatesData, conceptsData] = await Promise.all([
-        pipelineTemplatesApi.list(debouncedSearch),
+        // 🔥 Filtreyi gönderiyoruz
+        pipelineTemplatesApi.list(debouncedSearch, selectedConceptId),
         conceptsApi.list(),
       ]);
       setItems(templatesData);
@@ -113,7 +116,7 @@ export default function PipelineTemplatesPage() {
 
   useEffect(() => {
     loadData();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, selectedConceptId]);
 
   // --- DİNAMİK PRESET GETİRME ---
   useEffect(() => {
@@ -302,33 +305,51 @@ export default function PipelineTemplatesPage() {
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
               <Layers className="text-indigo-500" /> Üretim Şablonları
             </h1>
-            <div className="flex gap-2 relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <Input
-                placeholder="Şablon ara..."
-                className="pl-9 bg-zinc-900/50 border-zinc-800"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={loadData}
-                className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
-              >
-                <RefreshCw
-                  className={loading ? "animate-spin" : ""}
-                  size={18}
+
+            {/* SAĞ GRUP */}
+            <div className="flex items-center gap-2">
+              {/* 🔥 YENİ: KONSEPT FİLTRESİ */}
+              <div className="w-48">
+                <Select
+                  value={selectedConceptId}
+                  onChange={setSelectedConceptId}
+                  // "Tüm Konseptler" seçeneğini başa ekliyoruz
+                  options={[
+                    { label: "Tüm Konseptler", value: "" },
+                    ...concepts,
+                  ]}
+                  placeholder="Konsept Filtrele"
+                  className="h-9 text-xs bg-zinc-900/50 border-zinc-800"
                 />
-              </Button>
-              <Button
-                onClick={handleNew}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg px-4"
-              >
-                <Plus size={18} className="mr-2" /> Yeni Şablon
-              </Button>
+              </div>
+              <div className="flex gap-2 relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Input
+                  placeholder="Şablon ara..."
+                  className="pl-9 bg-zinc-900/50 border-zinc-800"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={loadData}
+                  className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+                >
+                  <RefreshCw
+                    className={loading ? "animate-spin" : ""}
+                    size={18}
+                  />
+                </Button>
+                <Button
+                  onClick={handleNew}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg px-4"
+                >
+                  <Plus size={18} className="mr-2" /> Yeni Şablon
+                </Button>
+              </div>
             </div>
           </div>
 
