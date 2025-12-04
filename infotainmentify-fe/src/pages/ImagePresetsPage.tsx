@@ -43,7 +43,7 @@ const EMPTY_FORM: SaveImagePresetDto = {
   name: "",
   userAiConnectionId: 0,
   modelName: "dall-e-3",
-  size: "1024x1792",
+  size: "1080x1920",
   quality: "standard",
   artStyle: "",
   imageCountPerScene: 1,
@@ -53,9 +53,9 @@ const EMPTY_FORM: SaveImagePresetDto = {
 
 // Görsel Oran Seçenekleri
 const ASPECT_RATIOS = [
-  { value: "1024x1792", label: "Shorts (9:16)", icon: RectangleVertical },
+  { value: "1080x1920", label: "Shorts (9:16)", icon: RectangleVertical },
   { value: "1024x1024", label: "Kare (1:1)", icon: Square },
-  { value: "1792x1024", label: "Yatay (16:9)", icon: RectangleHorizontal },
+  { value: "1920x1080", label: "Yatay (16:9)", icon: RectangleHorizontal },
 ];
 
 export default function ImagePresetsPage() {

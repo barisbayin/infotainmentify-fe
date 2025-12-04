@@ -315,13 +315,14 @@ export default function AiIntegrationsPage() {
                       </Label>
 
                       {form.provider === "GoogleVertex" ? (
-                        // 🔥 YENİ JSON INPUT BİLEŞENİ
+                        // 🔥 DÜZELTME: className="h-64" ekledik. Artık kutunun boyu sabit olacak.
                         <JsonInput
                           value={form.apiKey}
                           onChange={(val) => setForm({ ...form, apiKey: val })}
                           placeholder={
                             '{\n  "type": "service_account",\n  "project_id": "..."\n}'
                           }
+                          className="h-64"
                         />
                       ) : (
                         // Standart Password Input

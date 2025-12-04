@@ -25,7 +25,8 @@ export type SaveUserAiConnectionDto = {
 // Provider Listesi (Dropdown için)
 export const AI_PROVIDERS = [
     { value: "OpenAI", label: "OpenAI (GPT / DALL-E / TTS)" },
-    { value: "GoogleVertex", label: "Google Vertex AI (Gemini)" },
+    { value: "GoogleVertex", label: "Google Vertex AI" },
+    { value: "GoogleAIStudio", label: "Google AI Studio" },
     { value: "ElevenLabs", label: "ElevenLabs (Ses)" },
     { value: "StabilityAI", label: "Stability AI (Görsel)" },
     { value: "RunwayML", label: "Runway (Video)" },
