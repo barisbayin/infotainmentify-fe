@@ -11,11 +11,13 @@ export type PipelineStageDto = {
     finishedAt?: string;
     error?: string;
     durationMs: number;
+    outputJson: string;
 };
 
 export type PipelineRunListDto = {
     id: number;
     templateName: string; // Backend'den bu isimle geliyor
+    runContextTitle?: string;
     status: string;
     startedAt?: string;
     completedAt?: string;

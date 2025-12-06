@@ -148,9 +148,11 @@ export default function PipelineTemplatesPage() {
           case "Video":
             data = await videoPresetsApi.list();
             break;
+          case "SceneLayout":
           case "Render":
             data = await renderPresetsApi.list();
             break;
+            
           // SceneLayout, Upload gibi preset gerektirmeyenler boş kalır
           default:
             data = [];

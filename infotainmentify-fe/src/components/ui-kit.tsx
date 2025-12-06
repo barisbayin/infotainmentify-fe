@@ -1,4 +1,5 @@
 import React, { type ReactNode, forwardRef } from "react";
+import { createPortal } from "react-dom";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import {
@@ -8,6 +9,7 @@ import {
   Check,
   Copy,
   Minus,
+  X,
   Plus,
 } from "lucide-react"; // Importlara ekle
 import { useState, useRef, useEffect } from "react"; // Bunları da ekle
@@ -27,15 +29,14 @@ export function Page({
   return (
     <div
       className={cn(
-        // min-h-screen YERİNE h-full kullanıyoruz ki Layout'un sınırlarına uysun.
-        // max-w-7xl KALDIRILDI, artık tam genişlik.
-        "h-full w-full bg-zinc-950 text-zinc-300 font-sans selection:bg-indigo-500/30 flex flex-col",
+        // Modernizasyon: Düz renk yerine tepeden vuran hafif bir indigo gradient spot ışığı
+        "h-full w-full bg-zinc-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-zinc-300 font-sans selection:bg-indigo-500/30 flex flex-col",
         className
       )}
       {...rest}
     >
       {/* İç padding ve full height */}
-      <div className="h-full w-full p-4 sm:p-6 flex flex-col space-y-4 overflow-hidden">
+      <div className="h-full w-full p-4 sm:p-6 flex flex-col space-y-4 overflow-hidden relative z-10">
         {children}
       </div>
     </div>
@@ -80,14 +81,14 @@ export function Card({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-inner backdrop-blur-xl transition-all hover:border-zinc-700/80",
+        // Modernizasyon: Daha güçlü glass effect, ince beyaz border ve hoverda yumuşak aydınlanma
+        "relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/40 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:border-white/10 hover:shadow-2xl hover:shadow-indigo-500/10",
         noPadding ? "" : "p-6",
         className
       )}
       {...rest}
     >
-      {/* Hafif bir glow efekti */}
-      <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100" />
+      {/* Noise texture opsiyonel olarak eklenebilir ama şimdilik temiz tutalım */}
       {children}
     </div>
   );
@@ -134,15 +135,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants = {
       primary:
-        "bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 border-transparent",
+        "bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 shadow-lg shadow-indigo-500/25 border border-white/10 hover:scale-[1.02]",
       secondary:
-        "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border-zinc-700 hover:border-zinc-600",
+        "bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700 hover:text-white border border-white/5 hover:border-white/10 backdrop-blur-sm",
       outline:
-        "bg-transparent border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white",
+        "bg-transparent border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white hover:border-zinc-500",
       ghost:
-        "bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/50",
+        "bg-zinc-950/50 text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-800/50 hover:border-zinc-700",
       danger:
-        "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20",
+        "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30",
     };
 
     const sizes = {
@@ -156,7 +157,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none border",
+          "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
           variants[variant],
           sizes[size],
           className
@@ -219,9 +220,9 @@ export const Input = forwardRef<
     <input
       ref={ref}
       className={cn(
-        "flex h-11 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600",
-        "focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-11 w-full rounded-xl border border-zinc-800 bg-zinc-950/30 px-3 py-2 text-sm text-white placeholder:text-zinc-600 shadow-sm",
+        "focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all duration-200",
+        "disabled:cursor-not-allowed disabled:opacity-50 hover:border-zinc-700",
         className
       )}
       {...props}
@@ -238,9 +239,9 @@ export const Textarea = forwardRef<
     <textarea
       ref={ref}
       className={cn(
-        "flex min-h-[100px] w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600",
-        "focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all resize-y",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "flex min-h-[100px] w-full rounded-xl border border-zinc-800 bg-zinc-950/30 px-3 py-2 text-sm text-white placeholder:text-zinc-600 shadow-sm",
+        "focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all duration-200 resize-y",
+        "disabled:cursor-not-allowed disabled:opacity-50 hover:border-zinc-700",
         className
       )}
       {...props}
@@ -259,17 +260,17 @@ export function Badge({
   variant?: "neutral" | "success" | "warning" | "error" | "brand";
 } & React.HTMLAttributes<HTMLSpanElement>) {
   const styles = {
-    neutral: "bg-zinc-800 text-zinc-300 border-zinc-700",
-    success: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    warning: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    error: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-    brand: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    neutral: "bg-zinc-800 text-zinc-300 ring-1 ring-inset ring-zinc-700/50",
+    success: "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+    warning: "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20",
+    error: "bg-rose-500/10 text-rose-400 ring-1 ring-inset ring-rose-500/20",
+    brand: "bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium tracking-wide transition-colors",
         styles[variant],
         className
       )}
@@ -285,10 +286,12 @@ export function Table({
   className,
 }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-auto rounded-xl border border-zinc-800 bg-zinc-900/30">
-      <table className={cn("w-full text-left text-sm", className)}>
-        {children}
-      </table>
+    <div className="w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/20 backdrop-blur-sm">
+      <div className="overflow-x-auto">
+        <table className={cn("w-full text-left text-sm", className)}>
+          {children}
+        </table>
+      </div>
     </div>
   );
 }
@@ -312,7 +315,7 @@ export function TR({
   return (
     <tr
       className={cn(
-        "border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/30 transition-colors",
+        "border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/50 transition-colors duration-200",
         className
       )}
       {...rest} // 🔥 VE BURAYA YAPIŞTIRIYORUZ. Bunu yapmazsan tıklama çalışmaz!
@@ -325,6 +328,7 @@ export function TR({
 export function TH({
   children,
   className,
+  ...rest
 }: React.ThHTMLAttributes<HTMLTableHeaderCellElement>) {
   return (
     <th
@@ -332,6 +336,7 @@ export function TH({
         "h-10 px-4 text-left align-middle font-medium text-zinc-400",
         className
       )}
+      {...rest}
     >
       {children}
     </th>
@@ -341,9 +346,10 @@ export function TH({
 export function TD({
   children,
   className,
+  ...rest
 }: React.TdHTMLAttributes<HTMLTableDataCellElement>) {
   return (
-    <td className={cn("p-4 align-middle text-zinc-200", className)}>
+    <td className={cn("p-4 align-middle text-zinc-200", className)} {...rest}>
       {children}
     </td>
   );
@@ -356,7 +362,7 @@ export function Modal({
   onClose,
   title,
   children,
-  maxWidth = "md", // 🔥 YENİ: Varsayılan orta boy, ama değiştirebiliriz
+  maxWidth = "md",
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -366,10 +372,9 @@ export function Modal({
 }) {
   if (!isOpen) return null;
 
-  // Tailwind genişlik sınıfları
   const widthClasses = {
     sm: "max-w-sm",
-    md: "max-w-lg", // Varsayılan (eski hali)
+    md: "max-w-lg",
     lg: "max-w-2xl",
     xl: "max-w-3xl",
     "2xl": "max-w-4xl",
@@ -379,15 +384,15 @@ export function Modal({
     full: "max-w-[95vw]",
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      {/* Dışarı tıkayınca kapatmak için overlay */}
+  return createPortal(
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-zinc-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
+      {/* Overlay */}
       <div className="absolute inset-0" onClick={onClose} />
 
       <div
         className={cn(
           "relative w-full rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200",
-          widthClasses[maxWidth] // 🔥 Dinamik genişlik buradan geliyor
+          widthClasses[maxWidth]
         )}
       >
         {/* Header */}
@@ -399,16 +404,17 @@ export function Modal({
           )}
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+            className="text-zinc-500 hover:text-white transition-colors"
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 
-        {/* Body (Scrollable) */}
+        {/* Content */}
         <div className="p-6 overflow-y-auto custom-scrollbar">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -455,19 +461,19 @@ export function Select({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex h-9 w-full items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 text-sm text-zinc-200 transition-all",
-          "focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50",
-          isOpen && "border-indigo-500/50 ring-2 ring-indigo-500/20"
+          "flex h-9 w-full items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/30 px-3 text-sm text-zinc-200 transition-all duration-200",
+          "hover:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50",
+          isOpen && "border-indigo-500/50 ring-2 ring-indigo-500/20 bg-zinc-900"
         )}
       >
-        <span className={selectedLabel ? "text-zinc-200" : "text-zinc-600"}>
+        <span className={selectedLabel ? "text-zinc-200" : "text-zinc-500"}>
           {selectedLabel || placeholder}
         </span>
         <ChevronDown
           size={16}
           className={cn(
-            "text-zinc-500 transition-transform",
-            isOpen && "rotate-180"
+            "text-zinc-500 transition-transform duration-200",
+            isOpen && "rotate-180 text-indigo-400"
           )}
         />
       </button>

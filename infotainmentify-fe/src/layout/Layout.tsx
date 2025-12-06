@@ -3,7 +3,10 @@ import { Outlet } from "react-router-dom"; // 🔥 BU EKLENDİ
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { Toaster } from "react-hot-toast";
+import { FloatingJobWidget } from "../components/NotificationComponents";
 // import { cn } from "../components/ui-kit";
+
+import { MouseSpotlight } from "../components/MouseSpotlight";
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(
@@ -16,7 +19,10 @@ export default function Layout() {
   }, [collapsed]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-950 text-zinc-200 font-sans">
+    <div className="relative flex h-screen overflow-hidden bg-zinc-950 text-zinc-200 font-sans isolate">
+      {/* Background Ambience */}
+      <MouseSpotlight />
+      <div className="bg-noise" />
       <Sidebar
         collapsed={collapsed}
         setCollapsed={setCollapsed}
@@ -39,6 +45,7 @@ export default function Layout() {
         </main>
       </div>
 
+      <FloatingJobWidget />
       <Toaster
         position="top-right"
         toastOptions={{

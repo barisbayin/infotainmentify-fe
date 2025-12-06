@@ -1,5 +1,17 @@
 import { http } from "./http";
-import type { AuthUser } from "./types";
+
+
+export type AuthUser = {
+    id: number;
+    email: string;
+    username: string;
+    role: string;
+    directoryName: string;
+};
+export type AuthResponse = {
+    token: string;
+    user: AuthUser
+};
 
 // Me => AuthUser (senin tipine göre)
 export function getMe() {

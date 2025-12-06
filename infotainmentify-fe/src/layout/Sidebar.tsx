@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { ChevronDown, ChevronRight, X, LogOut } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { cn } from "../components/ui-kit"; // veya senin path: "../components/ui-kit"
 import { MENU_CONFIG } from "../config/menu";
 
@@ -188,34 +188,7 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Footer (User) */}
-        <div className="border-t border-zinc-800 p-3">
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-xl bg-zinc-900/50 p-2",
-              collapsed && "justify-center bg-transparent p-0"
-            )}
-          >
-            <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white ring-2 ring-zinc-950">
-              ME
-            </div>
-            {!collapsed && (
-              <div className="flex flex-col overflow-hidden">
-                <span className="truncate text-xs font-semibold text-zinc-200">
-                  Barış
-                </span>
-                <span className="truncate text-[10px] text-zinc-500 font-mono">
-                  PRO PLAN
-                </span>
-              </div>
-            )}
-            {!collapsed && (
-              <button className="ml-auto text-zinc-500 hover:text-red-400 transition-colors">
-                <LogOut size={16} />
-              </button>
-            )}
-          </div>
-        </div>
+
       </aside>
     </>
   );

@@ -1,8 +1,18 @@
-import { useEffect } from "react";
-import toast from "react-hot-toast";
+import { useEffect, useRef } from "react";
 import { initSignalR, stopSignalR } from "../lib/signalr";
+import { useNotifications } from "../context/NotificationContext";
 
 export function useGlobalSignalR() {
+    const { startJob, updateJobProgress, finishJob } = useNotifications();
+    // Callbackleri useRef içinde tutmak, useEffect dependency sorununu çözer
+    // Ancak signalR init sadece bir kere çalışmalı.
+
+    // Notification fonksiyonlarını ref'e atayarak closure sorununu aşabiliriz
+    const funcs = useRef({ startJob, updateJobProgress, finishJob });
+    useEffect(() => {
+        funcs.current = { startJob, updateJobProgress, finishJob };
+    }, [startJob, updateJobProgress, finishJob]);
+
     useEffect(() => {
         let mounted = true;
 
@@ -10,18 +20,18 @@ export function useGlobalSignalR() {
             await initSignalR({
                 onJobProgress: (data: any) => {
                     if (!mounted) return;
-                    toast.loading(`${data.status ?? "İşlem"} (%${data.progress})`, {
-                        id: `job-${data.jobId}`,
-                    });
+                    // Job id string olmalı
+                    const jobId = data.jobId?.toString() || "unknown";
+
+                    // İlk progress geldiğinde başlat, sonrakilerde güncelle
+                    // Context içindeki startJob check yapıyor zaten.
+                    funcs.current.startJob(jobId, data.status ?? "İşlem");
+                    funcs.current.updateJobProgress(jobId, data.progress, data.status);
                 },
                 onJobCompleted: (data: any) => {
                     if (!mounted) return;
-                    toast.dismiss(`job-${data.jobId}`);
-                    if (data.success) {
-                        toast.success(data.message || "✅ Görev tamamlandı!");
-                    } else {
-                        toast.error(data.message || "❌ Görev başarısız!");
-                    }
+                    const jobId = data.jobId?.toString() || "unknown";
+                    funcs.current.finishJob(jobId, data.success, data.message);
                 },
             });
         };

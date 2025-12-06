@@ -1,5 +1,3 @@
-import { HttpError } from "./types";
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export function qs(params: Record<string, any>) {
@@ -11,6 +9,18 @@ export function qs(params: Record<string, any>) {
     const s = p.toString();
     return s ? `?${s}` : "";
 }
+
+export class HttpError extends Error {
+    status: number;
+    detail?: any;
+    constructor(message: string, status: number, detail?: any) {
+        super(message);
+        this.name = "HttpError";
+        this.status = status;
+        this.detail = detail;
+    }
+}
+
 
 function isAbsoluteUrl(url: string) {
     return /^https?:\/\//i.test(url);

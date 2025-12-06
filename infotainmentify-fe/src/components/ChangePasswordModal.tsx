@@ -3,7 +3,8 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 // alias kullanmıyorsan: import * as UsersApi from "../api/users";
 import * as UsersApi from "../api/users";
-import type { HttpError } from "../api/types";
+import { HttpError } from "../api/http";
+
 
 type Props = { open: boolean; onClose: () => void };
 

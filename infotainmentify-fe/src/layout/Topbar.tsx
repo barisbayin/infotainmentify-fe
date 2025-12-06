@@ -1,4 +1,6 @@
-import { Search, Menu, Bell, User } from "lucide-react";
+import { Search, Menu, User } from "lucide-react";
+import { NotificationCenter } from "../components/NotificationComponents";
+import { UserMenu } from "../components/UserMenu";
 // import { cn } from "../components/ui-kit";
 
 export default function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
@@ -35,10 +37,11 @@ export default function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
         </div>
 
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-indigo-500 ring-2 ring-zinc-950" />
-        </button>
+        {/* Notifications */}
+        <NotificationCenter />
+        
+        {/* User Menu */}
+        <UserMenu />
       </div>
     </div>
   );
