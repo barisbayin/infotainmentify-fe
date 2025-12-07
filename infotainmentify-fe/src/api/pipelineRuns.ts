@@ -60,4 +60,10 @@ export const pipelineRunsApi = {
             method: "POST",
         });
     },
+
+    retryStage(runId: number, stageType: string) {
+        return http<any>(`/api/pipeline-runs/${runId}/retry/${stageType}`, {
+            method: "POST"
+        });
+    }
 };

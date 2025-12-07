@@ -791,3 +791,46 @@ export function CodeViewer({
     </div>
   );
 }
+/* ----------------------- CONFIRM MODAL ----------------------- */
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = "Emin misiniz?",
+  message,
+  confirmText = "Onayla",
+  cancelText = "İptal",
+  variant = "danger",
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title?: string;
+  message: ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: "danger" | "primary";
+}) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm">
+      <div className="flex flex-col gap-4">
+        <div className="text-sm text-zinc-400 leading-relaxed">{message}</div>
+        <div className="flex justify-end gap-3 mt-2">
+          <Button variant="ghost" onClick={onClose} size="sm">
+            {cancelText}
+          </Button>
+          <Button
+            variant={variant}
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            size="sm"
+          >
+            {confirmText}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}

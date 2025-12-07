@@ -20,6 +20,7 @@ import {
   TD,
   Modal,
   Select,
+  ConfirmModal, 
 } from "../components/ui-kit";
 import {
   Play,
@@ -35,11 +36,13 @@ import {
   Calendar,
   ChevronRight,
   Eye, // EKLENDİ
-  MinusCircle
+  MinusCircle,
+  RefreshCcw
 } from "lucide-react";
 import { conceptsApi } from "../api/concepts";
 import { cn } from "../components/ui-kit";
 import { TimelineViewer, type SceneLayoutPayload } from "../components/TimelineViewer"; // 🔥 EKLENDİ
+
 
 // --- HELPER FUNCTIONS ---
 
@@ -211,7 +214,7 @@ const HistoryList = memo(({
  * 2. RunDetail (Sağ Taraf)
  * Shows the details of the selected run including stages timeline.
  */
-const RunDetail = memo(({ detail, loading, onOpenTimeline }: { detail: PipelineRunDetailDto | null, loading: boolean, onOpenTimeline: (json: string) => void }) => {
+const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage }: { detail: PipelineRunDetailDto | null, loading: boolean, onOpenTimeline: (json: string) => void, onRetryStage: (runId: number, stageName: string) => void }) => {
     
     if (loading && !detail) {
         return (
@@ -236,7 +239,7 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline }: { detail: PipelineR
     }
 
     return (
-        <Card className="h-full flex flex-col overflow-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0 transition-all duration-300">
+        <Card className="h-full flex flex-col overflow-hidden overflow-x-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0 transition-all duration-300">
             {/* Header */}
             <div className="p-5 border-b border-zinc-800/50 shrink-0 bg-zinc-900/40 flex justify-between items-start">
                 <div>
@@ -367,11 +370,30 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline }: { detail: PipelineR
                                                 {(stage.durationMs / 1000).toFixed(1)}s
                                             </span>
                                         )}
+
+                                        {/* HATA MESAJI VE RETRY */}
+                                        {["Failed", "PermanentlyFailed"].includes(stage.status) && (
+                                            <div className="flex items-center gap-2 ml-auto">
+                                                <span className="text-red-500 text-[10px] hidden xl:block truncate max-w-[120px]" title={stage.error}>
+                                                   {stage.error || "Hata oluştu"}
+                                                </span>
+                                                <button 
+                                                   onClick={(e) => {
+                                                       e.stopPropagation();
+                                                       onRetryStage(detail.id, stage.stageType);
+                                                   }}
+                                                   className="p-1 px-2 rounded bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1 border border-red-500/20"
+                                                   title="Tekrar Dene"
+                                                >
+                                                   <RefreshCcw size={12} /> <span className="text-[10px] font-medium">Tekrar</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="text-xs text-zinc-500 pl-0.5">
                                     {isFailed ? (
-                                        <span className="text-red-400 block mt-1 bg-red-950/30 p-2 rounded border border-red-500/10">
+                                        <span className="text-red-400 block mt-1 bg-red-950/30 p-2 rounded border border-red-500/10 break-all whitespace-pre-wrap font-mono">
                                             {stage.error || "Beklenmeyen hata."}
                                         </span>
                                     ) : isRunning ? (
@@ -429,6 +451,19 @@ export default function PipelineRunsPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [creating, setCreating] = useState(false);
 
+  // Confirm Modal State
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
   // Polling Ref
   const pollRef = useRef<number | null>(null);
 
@@ -444,6 +479,8 @@ export default function PipelineRunsPage() {
           toast.error("Timeline verisi okunamadı.");
       }
   }, []);
+
+
 
   const loadList = useCallback(async (isAutoRefresh = false) => {
     if(!isAutoRefresh) setListLoading(true);
@@ -512,6 +549,29 @@ export default function PipelineRunsPage() {
       }
     }, 2000); 
   }, [stopPolling, loadList]);
+
+  const handleRetryStage = useCallback((runId: number, stageName: string) => {
+      setConfirmConfig({
+          isOpen: true,
+          title: "Aşamayı Tekrar Dene",
+          message: (
+            <span>
+              Bu aşamayı (<b>{stageName}</b>) tekrar denemek istediğinize emin misiniz? <br/>
+              <span className="text-xs text-zinc-500">Bu işlem başarısız olan adımı yeniden kuyruğa ekler.</span>
+            </span>
+          ),
+          onConfirm: async () => {
+              try {
+                // Modal kapandıktan sonra işlemi yap
+                await pipelineRunsApi.retryStage(runId, stageName);
+                toast.success("Tekrar başlatılıyor...");
+                startPolling(runId);
+              } catch {
+                toast.error("Tekrar deneme başarısız.");
+              }
+          }
+      });
+  }, [startPolling]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -638,7 +698,7 @@ export default function PipelineRunsPage() {
 
         {/* SAĞ: MONITOR (Memoized) */}
         <div className="col-span-12 lg:col-span-5 xl:col-span-6 flex flex-col h-full min-h-0">
-             <RunDetail detail={detail} loading={detailLoading} onOpenTimeline={openTimeline} />
+             <RunDetail detail={detail} loading={detailLoading} onOpenTimeline={openTimeline} onRetryStage={handleRetryStage} />
         </div>
       </div>
 
@@ -698,6 +758,16 @@ export default function PipelineRunsPage() {
             <Button variant="secondary" onClick={() => setTimelineData(null)}>Kapat</Button>
          </div>
       </Modal>
+     {/* Global Confirm Modal */}
+     <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        variant="primary"
+        confirmText="Evet, Tekrar Dene"
+     />
     </Page>
   );
 }
