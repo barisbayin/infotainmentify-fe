@@ -19,6 +19,7 @@ const PipelineTemplatesPage = lazy(
   () => import("./pages/PipelineTemplatesPage")
 );
 const PipelineRunsPage = lazy(() => import("./pages/PipelineRunsPage"));
+const AssetsPage = lazy(() => import("./pages/AssetsPage"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 
 // 2. HENÜZ OLMAYANLAR (Dosyayı import etme, direkt BlankPage değişkenini kullan)
@@ -47,11 +48,11 @@ export const routes: AppRoute[] = [
   { path: "/stt-presets", element: SttPresetsPage },
   { path: "/pipeline-templates", element: PipelineTemplatesPage },
   { path: "/pipeline-runs", element: PipelineRunsPage },
+  { path: "/assets", element: AssetsPage },
 
   // --- GEÇİCİ SAYFALAR (Hepsi BlankPage'e gider) ---
   // Dashboard dosyası olmadığı için BlankPage kullanıyoruz
 
-  { path: "/assets", element: BlankPage },
   { path: "/users", element: BlankPage },
   { path: "/job-settings", element: BlankPage },
   { path: "/job-executions", element: BlankPage },

@@ -38,7 +38,6 @@ import {
   MinusCircle,
   RefreshCcw,
   Terminal,
-  Maximize2 // EKLENDİ video büyütme için
 } from "lucide-react";
 import { conceptsApi } from "../api/concepts";
 import { cn } from "../components/ui-kit";
@@ -112,13 +111,11 @@ const HistoryList = memo(({
     selectedId, 
     onSelect, 
     loading,
-    onRefresh 
 }: { 
     items: PipelineRunListDto[], 
     selectedId: number | null, 
     onSelect: (id: number) => void,
-    loading: boolean,
-    onRefresh: () => void
+    loading: boolean
 }) => {
     return (
         <Card className="flex-1 min-h-0 p-0 overflow-hidden flex flex-col border-zinc-800 bg-zinc-900/40">
@@ -849,7 +846,6 @@ export default function PipelineRunsPage() {
             selectedId={selectedId} 
             onSelect={handleSelect} 
             loading={listLoading}
-            onRefresh={loadList}
           />
         </div>
 
