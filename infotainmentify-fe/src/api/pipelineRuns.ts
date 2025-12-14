@@ -29,6 +29,7 @@ export type PipelineRunDetailDto = {
     startedAt?: string;
     completedAt?: string;
     errorMessage?: string;
+    finalVideoUrl?: string;
     stages: PipelineStageDto[];
 };
 
@@ -65,5 +66,9 @@ export const pipelineRunsApi = {
         return http<any>(`/api/pipeline-runs/${runId}/retry/${stageType}`, {
             method: "POST"
         });
+    },
+
+    getLogs(id: number) {
+        return http<string[]>(`/api/pipeline-runs/${id}/logs`);
     }
 };

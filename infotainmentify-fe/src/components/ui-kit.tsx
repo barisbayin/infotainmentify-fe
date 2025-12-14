@@ -363,12 +363,14 @@ export function Modal({
   title,
   children,
   maxWidth = "md",
+  className, // Eklenen Prop
 }: {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
   maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
+  className?: string; // Eklenen Prop Type
 }) {
   if (!isOpen) return null;
 
@@ -392,7 +394,8 @@ export function Modal({
       <div
         className={cn(
           "relative w-full rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200",
-          widthClasses[maxWidth]
+          widthClasses[maxWidth],
+          className // ClassName burada birleştiriliyor
         )}
       >
         {/* Header */}

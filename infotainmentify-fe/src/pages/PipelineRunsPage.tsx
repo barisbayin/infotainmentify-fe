@@ -34,14 +34,18 @@ import {
   Activity,
   Copy,
   Calendar,
-  ChevronRight,
   Eye, // EKLENDİ
   MinusCircle,
-  RefreshCcw
+  RefreshCcw,
+  Terminal,
+  Maximize2 // EKLENDİ video büyütme için
 } from "lucide-react";
 import { conceptsApi } from "../api/concepts";
 import { cn } from "../components/ui-kit";
 import { TimelineViewer, type SceneLayoutPayload } from "../components/TimelineViewer"; // 🔥 EKLENDİ
+import LiveLogViewer from "../components/LiveLogViewer"; // 🔥 LiveLogViewer Eklendi
+import VideoPlayer from "../components/VideoPlayer"; // 🔥 VideoPlayer Eklendi
+
 
 
 // --- HELPER FUNCTIONS ---
@@ -215,6 +219,13 @@ const HistoryList = memo(({
  * Shows the details of the selected run including stages timeline.
  */
 const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage }: { detail: PipelineRunDetailDto | null, loading: boolean, onOpenTimeline: (json: string) => void, onRetryStage: (runId: number, stageName: string) => void }) => {
+    const [activeTab, setActiveTab] = useState<"timeline" | "logs" | "video">("timeline");
+    const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
+
+    // Detail değiştiğinde (yeni run seçildiğinde) tab'i timeline'a resetle
+    useEffect(() => {
+        if(detail?.id) setActiveTab("timeline");
+    }, [detail?.id]);
     
     if (loading && !detail) {
         return (
@@ -300,120 +311,246 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage }: { det
                 )}
             </div>
 
-            {/* TIMELINE / STAGES */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-0 relative scrollbar-thin scrollbar-thumb-zinc-700 bg-gradient-to-b from-zinc-900/20 to-transparent">
-                {/* Dikey Çizgi */}
-                <div className="absolute left-[39px] top-6 bottom-6 w-px bg-zinc-800/60 z-0 dashed-line" />
 
-                {detail.stages.map((stage, idx) => {
-                    const isRunning = stage.status === "Running";
-                    const isCompleted = stage.status === "Completed";
-                    const isFailed = stage.status.includes("Failed");
-                    const isSkipped = stage.status === "Skipped";
+            {/* TAB HEADER */}
+            {detail && (
+                <div className="flex items-center gap-1 bg-zinc-900/40 border-b border-zinc-800/50 px-4 pt-2">
+                    <button
+                        onClick={() => setActiveTab("timeline")}
+                        className={cn(
+                            "px-4 py-2 text-xs font-medium border-b-2 transition-all flex items-center gap-2",
+                            activeTab === "timeline"
+                                ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
+                                : "border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
+                        )}
+                    >
+                        <Layers size={14} />
+                        Zaman Çizelgesi
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("logs")}
+                        className={cn(
+                            "px-4 py-2 text-xs font-medium border-b-2 transition-all flex items-center gap-2",
+                            activeTab === "logs"
+                                ? "border-emerald-500 text-emerald-400 bg-emerald-500/5"
+                                : "border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
+                        )}
+                    >
+                        <Terminal size={14} />
+                        Canlı Konsol
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("video")}
+                        className={cn(
+                            "px-4 py-2 text-xs font-medium border-b-2 transition-all flex items-center gap-2",
+                            activeTab === "video"
+                                ? "border-rose-500 text-rose-400 bg-rose-500/5"
+                                : "border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
+                        )}
+                    >
+                        <Play size={14} />
+                        Video Önizleme
+                    </button>
+                </div>
+            )}
 
-                    return (
-                        <div
-                            key={idx}
-                            className={cn(
-                                "relative z-10 flex gap-5 mb-8 last:mb-0 group transition-all duration-500",
-                                isRunning ? "opacity-100 translate-x-1" : "opacity-90"
-                            )}
-                        >
-                            {/* İkon Kutusu */}
-                             <div className="relative">
-                                {isRunning && (
-                                    <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-md animate-pulse"></div>
-                                )}
+            {/* CONTENT AREA */}
+            <div className="flex-1 overflow-y-auto p-0 relative scrollbar-thin scrollbar-thumb-zinc-700 bg-zinc-900/20">
+                
+                {/* TIMELINE TAB */}
+                {activeTab === "timeline" && (
+                    <div className="p-6 relative">
+                         {/* Dikey Çizgi */}
+                        <div className="absolute left-[39px] top-6 bottom-6 w-px bg-zinc-800/60 z-0 dashed-line" />
+
+                        {detail.stages.map((stage, idx) => {
+                            const isRunning = stage.status === "Running";
+                            const isCompleted = stage.status === "Completed";
+                            const isFailed = stage.status.includes("Failed");
+                            const isSkipped = stage.status === "Skipped";
+
+                            return (
                                 <div
+                                    key={idx}
                                     className={cn(
-                                        "w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-all duration-300 relative bg-zinc-950 z-10",
-                                        isRunning
-                                            ? "border-amber-500 text-amber-500 shadow-[0_0_15px_-3px_rgba(245,158,11,0.3)] scale-110"
-                                            : isCompleted
-                                            ? "border-emerald-500/50 text-emerald-500 bg-emerald-500/5"
-                                            : isFailed
-                                            ? "border-red-500/50 text-red-500 bg-red-500/5"
-                                            : "border-zinc-800 text-zinc-600"
+                                        "relative z-10 flex gap-4 mb-4 last:mb-0 group transition-all duration-500", // mb-8 -> mb-4, gap-5 -> gap-4
+                                        isRunning ? "opacity-100 translate-x-1" : "opacity-90"
                                     )}
                                 >
-                                    {getStageIcon(stage.status)}
-                                </div>
-                             </div>
-
-                            {/* Detaylar */}
-                            <div className={cn(
-                                "flex-1 pt-1 p-3 rounded-lg border transition-all duration-300",
-                                isRunning 
-                                    ? "bg-zinc-900/80 border-amber-500/20 shadow-lg shadow-black/20" 
-                                    : "bg-transparent border-transparent hover:bg-zinc-900/40 hover:border-zinc-800/50"
-                            )}>
-                                <div className="flex justify-between items-center mb-1">
-                                    <span
-                                        className={`text-sm font-semibold tracking-wide ${
-                                            isRunning ? "text-amber-100" : isCompleted ? "text-zinc-200" : "text-zinc-400"
-                                        }`}
-                                    >
-                                        {stage.stageType}
-                                    </span>
-                                    
-                                    <div className="flex items-center gap-2">
-                                        {stage.stageType === "SceneLayout" && stage.status === "Completed" && (
-                                             <button 
-                                                onClick={() => onOpenTimeline(stage.outputJson || "")}
-                                                className="p-1 px-2 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-colors flex items-center gap-1.5 text-[10px] font-medium border border-indigo-500/20"
-                                             >
-                                                <Eye size={12} /> Önizle
-                                             </button>
+                                    {/* İkon Kutusu */}
+                                    <div className="relative pt-1"> {/* Hizalama için pt-1 */}
+                                        {isRunning && (
+                                            <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-md animate-pulse"></div>
                                         )}
-                                        {stage.durationMs > 0 && (
-                                            <span className="text-[10px] font-mono text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800/50">
-                                                {(stage.durationMs / 1000).toFixed(1)}s
+                                        <div
+                                            className={cn(
+                                                "w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all duration-300 relative bg-zinc-950 z-10", // w-10 h-10 -> w-8 h-8
+                                                isRunning
+                                                    ? "border-amber-500 text-amber-500 shadow-[0_0_15px_-3px_rgba(245,158,11,0.3)] scale-110"
+                                                    : isCompleted
+                                                    ? "border-emerald-500/50 text-emerald-500 bg-emerald-500/5"
+                                                    : isFailed
+                                                    ? "border-red-500/50 text-red-500 bg-red-500/5"
+                                                    : "border-zinc-800 text-zinc-600"
+                                            )}
+                                        >
+                                            {getStageIcon(stage.status)}
+                                        </div>
+                                    </div>
+
+                                    {/* Detaylar */}
+                                    <div className={cn(
+                                        "flex-1 p-3 rounded-lg border transition-all duration-300 flex items-center justify-between gap-4", // Flex row aligned center
+                                        isRunning 
+                                            ? "bg-zinc-900/80 border-amber-500/20 shadow-lg shadow-black/20" 
+                                            : "bg-transparent border-transparent hover:bg-zinc-900/40 hover:border-zinc-800/50"
+                                    )}>
+                                        {/* İSİM ve BADGE YAN YANA */}
+                                        <div className="flex items-center gap-3">
+                                            <span
+                                                className={`text-sm font-semibold tracking-wide ${
+                                                    isRunning ? "text-amber-100" : isCompleted ? "text-zinc-200" : "text-zinc-400"
+                                                }`}
+                                            >
+                                                {stage.stageType}
                                             </span>
-                                        )}
-
-                                        {/* HATA MESAJI VE RETRY */}
-                                        {["Failed", "PermanentlyFailed"].includes(stage.status) && (
-                                            <div className="flex items-center gap-2 ml-auto">
-                                                <span className="text-red-500 text-[10px] hidden xl:block truncate max-w-[120px]" title={stage.error}>
-                                                   {stage.error || "Hata oluştu"}
-                                                </span>
-                                                <button 
-                                                   onClick={(e) => {
-                                                       e.stopPropagation();
-                                                       onRetryStage(detail.id, stage.stageType);
-                                                   }}
-                                                   className="p-1 px-2 rounded bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1 border border-red-500/20"
-                                                   title="Tekrar Dene"
-                                                >
-                                                   <RefreshCcw size={12} /> <span className="text-[10px] font-medium">Tekrar</span>
-                                                </button>
+                                            
+                                            {/* DURUM BADGE'LERI */}
+                                            <div className="text-xs">
+                                                {isFailed ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                                                        {stage.error || "Hata Verme"}
+                                                    </span>
+                                                ) : isRunning ? (
+                                                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                                        <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse"/>
+                                                        İşleniyor
+                                                    </span>
+                                                ) : isCompleted ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                                        Tamamlandı
+                                                    </span>
+                                                ) : isSkipped ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-500/10 text-zinc-500 border border-zinc-500/20">
+                                                        Atlandı
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-800/50 text-zinc-500 border border-zinc-700/50">
+                                                        Bekliyor
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
+
+                                        {/* SAĞ TARAF AKSİYONLAR */}
+                                        <div className="flex items-center gap-2">
+                                            {stage.stageType === "SceneLayout" && stage.status === "Completed" && (
+                                                <button 
+                                                    onClick={() => onOpenTimeline(stage.outputJson || "")}
+                                                    className="h-8 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 text-xs font-medium"
+                                                >
+                                                    <Eye size={14} /> Önizle
+                                                </button>
+                                            )}
+
+                                            {/* RENDER VIDEO BUTTON */}
+                                            {(stage.stageType === "Render" || stage.stageType === "Video") && stage.status === "Completed" && (
+                                                 <button 
+                                                    onClick={() => setActiveTab("video")}
+                                                    className="h-8 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 text-xs font-medium"
+                                                 >
+                                                     <Play size={14} fill="currentColor" /> İzle
+                                                 </button>
+                                            )}
+                                            
+                                            {stage.durationMs > 0 && (
+                                                <span className="text-[10px] font-mono text-zinc-500 bg-zinc-950 px-2 py-1 rounded border border-zinc-800/50">
+                                                    {(stage.durationMs / 1000).toFixed(1)}s
+                                                </span>
+                                            )}
+
+                                            {/* RETRY */}
+                                            {["Failed", "PermanentlyFailed"].includes(stage.status) && (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onRetryStage(detail.id, stage.stageType);
+                                                    }}
+                                                    className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors border border-zinc-700"
+                                                    title="Tekrar Dene"
+                                                >
+                                                    <RefreshCcw size={14} />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="text-xs text-zinc-500 pl-0.5">
-                                    {isFailed ? (
-                                        <span className="text-red-400 block mt-1 bg-red-950/30 p-2 rounded border border-red-500/10 break-all whitespace-pre-wrap font-mono">
-                                            {stage.error || "Beklenmeyen hata."}
-                                        </span>
-                                    ) : isRunning ? (
-                                        <span className="text-amber-500 flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"/>
-                                            İşleniyor...
-                                        </span>
-                                    ) : isCompleted ? (
-                                        <span className="text-emerald-500/60 font-medium">Tamamlandı</span>
-                                    ) : isSkipped ? (
-                                        <span className="text-zinc-600 italic">Atlandı</span>
-                                    ) : (
-                                        "Bekliyor..."
-                                    )}
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* LOGS TAB */}
+                {activeTab === "logs" && (
+                     <div className="p-4 h-full flex flex-col">
+                        <LiveLogViewer runId={detail.id} />
+                     </div>
+                )}
+
+                {/* VIDEO TAB */}
+                {activeTab === "video" && (
+                     <div className="p-8 h-full flex flex-col items-center justify-center bg-zinc-950/30">
+                        {(() => {
+                            // 1. Backend'den gelen doğrudan URL (Öncelikli)
+                            let videoPath = detail.finalVideoUrl;
+
+                            // 2. Eğer yoksa eski yöntemle JSON'dan bulmaya çalış (Fallback)
+                            if (!videoPath) {
+                                const videoStage = detail.stages.find(s => 
+                                    (s.stageType === "Video" || s.stageType === "Render") && 
+                                    s.status === "Completed" && 
+                                    s.outputJson
+                                );
+                                if (videoStage?.outputJson) {
+                                    try {
+                                        const out = JSON.parse(videoStage.outputJson);
+                                        videoPath = out.path || out.url || out.videoPath || null;
+                                    } catch {}
+                                }
+                            }
+
+                            if (!videoPath) {
+                                return (
+                                    <div className="text-center text-zinc-500">
+                                        <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-800">
+                                            <Play size={24} className="opacity-20 ltr:ml-1" />
+                                        </div>
+                                        <p>Henüz hazır bir video yok.</p>
+                                        <p className="text-xs opacity-50 mt-2">Pipeline tamamlandığında video burada görünecektir.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="flex flex-col items-center gap-4 w-full">
+                                     {/* Video Player - Interactive in Tab */}
+                                    <div 
+                                        className="rounded-xl overflow-hidden shadow-xl border border-zinc-800 bg-black max-w-full"
+                                        style={{ width: '32vh' }}
+                                    >
+                                         <VideoPlayer 
+                                            videoUrl={videoPath} 
+                                            onExpand={() => setVideoModalUrl(videoPath)}
+                                         /> 
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                            );
+                        })()}
+                     </div>
+                )}
             </div>
+
+
 
             {/* Footer Status Bar */}
             {detail.status === "Running" && (
@@ -423,6 +560,24 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage }: { det
                     </div>
                 </div>
             )}
+            {/* VIDEO PREVIEW MODAL */}
+            <Modal
+                isOpen={!!videoModalUrl}
+                onClose={() => setVideoModalUrl(null)}
+                title="Video Önizleme"
+                className="w-fit max-w-none" // Modal genişliğini içeriğe göre ayarla
+            >
+                <div className="flex justify-center items-center bg-black/20 rounded-lg p-2">
+                    {/* Dikey (9:16) video için genişliği ekran yüksekliğine göre ayarla: 
+                        Height = Width * 1.777
+                        Width = Height / 1.777
+                        Max Height ~80vh olsun => Width ~40vh (Scroll'u önlemek için biraz küçülttüm)
+                    */}
+                    <div style={{ width: '40vh' }} className="max-w-full">
+                        {videoModalUrl && <VideoPlayer videoUrl={videoModalUrl} className="shadow-none border-none" />}
+                    </div>
+                </div>
+            </Modal>
         </Card>
     );
 });
@@ -463,6 +618,8 @@ export default function PipelineRunsPage() {
     message: "",
     onConfirm: () => {},
   });
+
+
 
   // Polling Ref
   const pollRef = useRef<number | null>(null);
