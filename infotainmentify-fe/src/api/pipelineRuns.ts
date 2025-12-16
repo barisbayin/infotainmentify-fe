@@ -68,6 +68,13 @@ export const pipelineRunsApi = {
         });
     },
 
+    reRender(dto: { runId: number; newRenderPresetId?: number }) {
+        return http<{ message: string }>("/api/pipeline-runs/re-render", {
+            method: "POST",
+            body: JSON.stringify(dto),
+        });
+    },
+
     getLogs(id: number) {
         return http<string[]>(`/api/pipeline-runs/${id}/logs`);
     }

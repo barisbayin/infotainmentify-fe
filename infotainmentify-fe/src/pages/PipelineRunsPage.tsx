@@ -7,6 +7,10 @@ import {
 import {
   pipelineTemplatesApi,
 } from "../api/pipelineTemplates";
+import {
+  renderPresetsApi,
+  type RenderPresetListDto,
+} from "../api/renderPresets";
 import toast from "react-hot-toast";
 import {
   Page,
@@ -215,7 +219,7 @@ const HistoryList = memo(({
  * 2. RunDetail (Sağ Taraf)
  * Shows the details of the selected run including stages timeline.
  */
-const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage }: { detail: PipelineRunDetailDto | null, loading: boolean, onOpenTimeline: (json: string) => void, onRetryStage: (runId: number, stageName: string) => void }) => {
+const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRenderClick }: { detail: PipelineRunDetailDto | null, loading: boolean, onOpenTimeline: (json: string) => void, onRetryStage: (runId: number, stageName: string) => void, onReRenderClick: (runId: number) => void }) => {
     const [activeTab, setActiveTab] = useState<"timeline" | "logs" | "video">("timeline");
     const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
@@ -268,6 +272,17 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage }: { det
                              <Calendar size={12} className="text-zinc-400"/>
                              {detail.startedAt ? new Date(detail.startedAt).toLocaleString() : "Başlamadı"}
                          </span>
+                         
+                         {detail.status === "Completed" && (
+                             <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => onReRenderClick(detail.id)}
+                                 className="h-7 px-3 text-[10px] gap-1.5 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors"
+                             >
+                                 <RefreshCw size={12} /> Yeniden Render
+                             </Button>
+                         )}
                     </div>
                 </div>
 
@@ -603,6 +618,12 @@ export default function PipelineRunsPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [creating, setCreating] = useState(false);
 
+  // Re-Render States
+  const [isReRenderModalOpen, setIsReRenderModalOpen] = useState(false);
+  const [reRenderRunId, setReRenderRunId] = useState<number | null>(null);
+  const [renderPresets, setRenderPresets] = useState<RenderPresetListDto[]>([]);
+  const [selectedRenderPresetId, setSelectedRenderPresetId] = useState<string>("");
+
   // Confirm Modal State
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -664,11 +685,19 @@ export default function PipelineRunsPage() {
     } catch {}
   }, []);
 
+  const loadRenderPresets = useCallback(async () => {
+    try {
+        const data = await renderPresetsApi.list();
+        setRenderPresets(data);
+    } catch {}
+  }, []);
+
   // INIT
   useEffect(() => {
     loadConcepts();
     loadTemplates();
-  }, [loadConcepts, loadTemplates]);
+    loadRenderPresets();
+  }, [loadConcepts, loadTemplates, loadRenderPresets]);
 
   // Filtre değişince
   useEffect(() => {
@@ -682,6 +711,27 @@ export default function PipelineRunsPage() {
       pollRef.current = null;
     }
   }, []);
+
+  const onReRenderClick = useCallback((runId: number) => {
+      setReRenderRunId(runId);
+      setIsReRenderModalOpen(true);
+      setSelectedRenderPresetId(""); 
+  }, []);
+
+  const handleReRender = async () => {
+      if(!reRenderRunId) return;
+      try {
+          await pipelineRunsApi.reRender({
+              runId: reRenderRunId,
+              newRenderPresetId: selectedRenderPresetId ? Number(selectedRenderPresetId) : undefined
+          });
+          toast.success("Yeniden render kuyruğa alındı.");
+          setIsReRenderModalOpen(false);
+          startPolling(reRenderRunId);
+      } catch {
+          toast.error("İşlem başarısız.");
+      }
+  };
 
   const startPolling = useCallback((id: number) => {
     stopPolling();
@@ -851,7 +901,7 @@ export default function PipelineRunsPage() {
 
         {/* SAĞ: MONITOR (Memoized) */}
         <div className="col-span-12 lg:col-span-5 xl:col-span-6 flex flex-col h-full min-h-0">
-             <RunDetail detail={detail} loading={detailLoading} onOpenTimeline={openTimeline} onRetryStage={handleRetryStage} />
+             <RunDetail detail={detail} loading={detailLoading} onOpenTimeline={openTimeline} onRetryStage={handleRetryStage} onReRenderClick={onReRenderClick} />
         </div>
       </div>
 
@@ -911,6 +961,7 @@ export default function PipelineRunsPage() {
             <Button variant="secondary" onClick={() => setTimelineData(null)}>Kapat</Button>
          </div>
       </Modal>
+
      {/* Global Confirm Modal */}
      <ConfirmModal 
         isOpen={confirmConfig.isOpen}
@@ -921,6 +972,40 @@ export default function PipelineRunsPage() {
         variant="primary"
         confirmText="Evet, Tekrar Dene"
      />
+
+      {/* RE-RENDER MODAL */}
+      <Modal
+          isOpen={isReRenderModalOpen}
+          onClose={() => setIsReRenderModalOpen(false)}
+          title="Yeniden Render Al"
+      >
+          <div className="flex flex-col gap-4">
+              <div className="bg-zinc-950/30 p-4 rounded-xl border border-zinc-800 text-sm text-zinc-400">
+                  <p>Mevcut pipeline çıktısını (Senaryo, Ses, Medya) kullanarak sadece <b>Video Render</b> aşamasını tekrar çalıştırır.</p>
+                  <p className="mt-2 text-xs text-zinc-500">Bu işlem yeni bir video üretir ancak içeriği değiştirmez.</p>
+              </div>
+
+              <div>
+                  <Label>Farklı Bir Render Ayarı Kullan (Opsiyonel)</Label>
+                  <Select
+                      value={selectedRenderPresetId}
+                      onChange={setSelectedRenderPresetId}
+                      options={[
+                          { label: "Varsayılan (Değiştirme)", value: "" },
+                          ...renderPresets.map(p => ({ label: p.name, value: p.id.toString() }))
+                      ]}
+                      className="mt-1.5"
+                  />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                  <Button variant="ghost" onClick={() => setIsReRenderModalOpen(false)}>İptal</Button>
+                  <Button variant="primary" onClick={handleReRender} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+                      <RefreshCw size={16} className="mr-2" /> Render Başlat
+                  </Button>
+              </div>
+          </div>
+      </Modal>
     </Page>
   );
 }

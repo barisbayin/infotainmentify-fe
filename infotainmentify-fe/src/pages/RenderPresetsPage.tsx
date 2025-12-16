@@ -611,17 +611,11 @@ export default function RenderPresetsPage() {
                                  <div className="grid grid-cols-2 gap-4">
                                      <div>
                                          <Label>Yazı Fontu</Label>
-                                          <Select
+                                          <Input
                                             value={form.captionSettings.fontName}
-                                            onChange={(v) => setForm({ ...form, captionSettings: { ...form.captionSettings, fontName: v } })}
-                                            options={[
-                                                { value: "Arial", label: "Arial" },
-                                                { value: "Arial-Bold", label: "Arial Bold" },
-                                                { value: "Inter", label: "Inter" },
-                                                { value: "Inter-Bold", label: "Inter Bold" },
-                                                { value: "Roboto", label: "Roboto" },
-                                            ]}
-                                            className="h-10 text-xs"
+                                            onChange={(e) => setForm({ ...form, captionSettings: { ...form.captionSettings, fontName: e.target.value } })}
+                                            className="h-10 text-xs bg-zinc-950/50 border-zinc-800 focus:border-indigo-500/50"
+                                            placeholder="Font adı (örn: Inter-Bold)"
                                         />
                                      </div>
                                      <div className="flex gap-2">
@@ -667,6 +661,16 @@ export default function RenderPresetsPage() {
                                          <Label>Alt Boşluk (px)</Label>
                                          <NumberInput value={form.captionSettings.marginBottom} onChange={v => setForm({...form, captionSettings: {...form.captionSettings, marginBottom: v}})} min={0} step={10} />
                                      </div>
+                                 </div>
+                                 
+                                 <div className="mt-4">
+                                    <Label>Satır Başına Max Kelime</Label>
+                                    <NumberInput 
+                                        value={form.captionSettings.maxWordsPerLine ?? 2} 
+                                        onChange={v => setForm({...form, captionSettings: {...form.captionSettings, maxWordsPerLine: v}})} 
+                                        min={1} 
+                                        max={10} 
+                                    />
                                  </div>
                             </>
                         )}
