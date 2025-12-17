@@ -63,7 +63,7 @@ export const pipelineRunsApi = {
     },
 
     retryStage(runId: number, stageType: string) {
-        return http<any>(`/api/pipeline-runs/${runId}/retry/${stageType}`, {
+        return http<any>(`/api/pipeline-runs/retry/${runId}/${stageType}`, {
             method: "POST"
         });
     },

@@ -430,9 +430,32 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                                             {/* DURUM BADGE'LERI */}
                                             <div className="text-xs">
                                                 {isFailed ? (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-                                                        {stage.error || "Hata Verme"}
-                                                    </span>
+                                                    <div className="flex flex-col max-w-[300px] lg:max-w-[500px] rounded-lg border border-red-500/20 bg-red-500/5 overflow-hidden group/error shadow-sm">
+                                                        {/* Header */}
+                                                        <div className="flex items-center justify-between px-3 py-1.5 border-b border-red-500/10 bg-red-500/10">
+                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 uppercase tracking-wider">
+                                                                <AlertTriangle size={10} />
+                                                                <span>Hata Detayı</span>
+                                                            </div>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    navigator.clipboard.writeText(stage.error || "");
+                                                                    toast.success("Hata kopyalandı");
+                                                                }}
+                                                                className="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-200 transition-colors"
+                                                                title="Hatayı Kopyala"
+                                                            >
+                                                                <Copy size={12} />
+                                                            </button>
+                                                        </div>
+                                                        {/* Content */}
+                                                        <div className="p-2.5 max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-red-500/20 text-left">
+                                                            <span className="text-[10px] font-mono text-red-300/90 break-all whitespace-pre-wrap leading-relaxed block">
+                                                                {stage.error || "Hata detayı bulunamadı."}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 ) : isRunning ? (
                                                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
                                                         <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse"/>
