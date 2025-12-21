@@ -34,8 +34,6 @@ import {
   Linkedin,
   Twitter,
   AlertTriangle,
-  CheckCircle2,
-  X,
 } from "lucide-react";
 
 // Varsayılan Form

@@ -32,7 +32,6 @@ import {
   Mic2,
   Volume2,
   Activity,
-  Zap,
 } from "lucide-react";
 
 const EMPTY_FORM: SaveTtsPresetDto = {

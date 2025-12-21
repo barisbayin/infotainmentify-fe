@@ -776,7 +776,7 @@ export default function PipelineRunsPage() {
     pollRef.current = window.setInterval(async () => {
       try {
         const data = await pipelineRunsApi.get(id);
-        setDetail((prev) => {
+        setDetail(() => {
              // Eğer polling sırasında başka bir ID ye geçildiyse (race condition) state'i güncelleme
              // Ancak component unmount durumu için cleanup yeterli olur, id check extra güvenlik.
              return data;

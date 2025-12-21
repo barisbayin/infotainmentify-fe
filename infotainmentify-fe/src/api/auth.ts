@@ -1,5 +1,5 @@
 import { http } from "./http";
-import type { AuthResponse } from "./types";
+import type { AuthResponse } from "./users";
 
 const TOKEN_KEY = "auth.token";
 

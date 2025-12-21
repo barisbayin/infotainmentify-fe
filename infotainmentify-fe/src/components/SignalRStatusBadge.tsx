@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getSignalRConnection } from "../lib/signalr"; // Yolunu kontrol et
-import { Wifi, WifiOff, Loader2, Zap } from "lucide-react";
+import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import Tooltip from "./Tooltip"; // 👈 Az önce yazdığımız Tooltip'i buraya import et
 
 export default function SignalRStatusBadge() {

@@ -22,7 +22,6 @@ import {
   TD,
   Modal,
   Select,
-  NumberInput,
 } from "../components/ui-kit";
 import {
   Plus,

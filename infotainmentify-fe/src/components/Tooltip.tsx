@@ -19,8 +19,8 @@ export default function Tooltip({ text, children, maxWidth = "250px" }: Props) {
   function handleMove(e: React.MouseEvent) {
     // Kanka burada ufak bir zeka ekliyoruz:
     // Eğer mouse ekranın sağına çok yakınsa (%80'den sonrası), tooltip'i sola doğru açarız.
-    const isRightSide = e.clientX > window.innerWidth * 0.8;
-    const isBottomSide = e.clientY > window.innerHeight * 0.8;
+    // const isRightSide = e.clientX > window.innerWidth * 0.8;
+    // const isBottomSide = e.clientY > window.innerHeight * 0.8;
 
     setCoords({
       x: e.clientX,

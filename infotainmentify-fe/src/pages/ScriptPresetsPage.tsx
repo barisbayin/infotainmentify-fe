@@ -35,7 +35,6 @@ import {
   Copy,
   Cpu,
   Timer,
-  MessageSquare,
 } from "lucide-react";
 
 const EMPTY_FORM: SaveScriptPresetDto = {

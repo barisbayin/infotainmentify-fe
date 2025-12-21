@@ -28,7 +28,6 @@ import {
   Lightbulb,
   Maximize2,
   Copy,
-  FolderOpen,
 } from "lucide-react";
 
 // Varsayılan Form

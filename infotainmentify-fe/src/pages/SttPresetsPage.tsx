@@ -31,7 +31,6 @@ import {
   Search,
   RefreshCw,
   Mic,
-  FileAudio,
   Captions,
 } from "lucide-react";
 
@@ -212,9 +211,10 @@ export default function SttPresetsPage() {
                 variant="outline"
                 size="icon"
                 onClick={loadData}
-                className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+                disabled={loading}
+                className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 disabled:opacity-50"
               >
-                <RefreshCw size={18} />
+                <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
               </Button>
               <Button
                 onClick={handleNew}
@@ -226,6 +226,20 @@ export default function SttPresetsPage() {
           </div>
 
           <Card className="flex-1 min-h-0 p-0 overflow-hidden flex flex-col border-zinc-800 bg-zinc-900/40">
+            <div className="p-3 border-b border-zinc-800/50 bg-zinc-900/40 backdrop-blur-sm">
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                  size={14}
+                />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 bg-zinc-950/50 border-zinc-800 h-9 text-xs focus:border-indigo-500/50 w-full"
+                  placeholder="Preset ara..."
+                />
+              </div>
+            </div>
             <div className="overflow-auto flex-1 scrollbar-thin scrollbar-thumb-zinc-700">
               <Table className="border-none w-full">
                 <THead>
@@ -239,32 +253,57 @@ export default function SttPresetsPage() {
                   </TR>
                 </THead>
                 <tbody>
-                  {filteredItems.map((item) => (
-                    <TR
-                      key={item.id}
-                      onClick={() => handleSelect(item.id)}
-                      className={`cursor-pointer border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
-                        selectedId === item.id
-                          ? "bg-indigo-500/10 border-l-4 border-l-indigo-500"
-                          : "border-l-4 border-l-transparent"
-                      }`}
-                    >
-                      <TD className="font-medium text-zinc-200 py-3">
-                        {item.name}
-                      </TD>
-                      <TD className="text-zinc-400 py-3 text-sm">
-                        {item.modelName}
-                      </TD>
-                      <TD className="text-zinc-400 py-3">
-                        {item.languageCode}
-                      </TD>
-                      <TD className="text-right text-zinc-500 text-xs py-3 font-mono">
-                        {item.updatedAt
-                          ? new Date(item.updatedAt).toLocaleDateString("tr-TR")
-                          : "-"}
+                  {loading ? (
+                    <TR>
+                      <TD
+                        colSpan={4}
+                        className="h-32 text-center text-zinc-500 align-middle"
+                      >
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <RefreshCw className="animate-spin text-indigo-500" />
+                          <span>Yükleniyor...</span>
+                        </div>
                       </TD>
                     </TR>
-                  ))}
+                  ) : filteredItems.length === 0 ? (
+                    <TR>
+                      <TD
+                        colSpan={4}
+                        className="h-32 text-center text-zinc-500 align-middle"
+                      >
+                        Kayıt bulunamadı.
+                      </TD>
+                    </TR>
+                  ) : (
+                    filteredItems.map((item) => (
+                      <TR
+                        key={item.id}
+                        onClick={() => handleSelect(item.id)}
+                        className={`cursor-pointer border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
+                          selectedId === item.id
+                            ? "bg-indigo-500/10 border-l-4 border-l-indigo-500"
+                            : "border-l-4 border-l-transparent"
+                        }`}
+                      >
+                        <TD className="font-medium text-zinc-200 py-3">
+                          {item.name}
+                        </TD>
+                        <TD className="text-zinc-400 py-3 text-sm">
+                          {item.modelName}
+                        </TD>
+                        <TD className="text-zinc-400 py-3">
+                          {item.languageCode}
+                        </TD>
+                        <TD className="text-right text-zinc-500 text-xs py-3 font-mono">
+                          {item.updatedAt
+                            ? new Date(item.updatedAt).toLocaleDateString(
+                                "tr-TR"
+                              )
+                            : "-"}
+                        </TD>
+                      </TR>
+                    ))
+                  )}
                 </tbody>
               </Table>
             </div>

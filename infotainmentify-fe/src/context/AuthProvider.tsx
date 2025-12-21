@@ -7,7 +7,7 @@ import React, {
   useContext,
 } from "react";
 import { AuthApi } from "../api"; // veya "../api"
-import type { AuthUser } from "../api/types";
+import type { AuthUser } from "../api/users";
 
 type AuthCtx = {
   user: AuthUser | null;

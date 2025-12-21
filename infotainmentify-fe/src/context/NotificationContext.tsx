@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, type ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, type ReactNode, useCallback } from "react";
 // import { v4 as uuidv4 } from "uuid";
 
 export type NotificationType = "info" | "success" | "warning" | "error";

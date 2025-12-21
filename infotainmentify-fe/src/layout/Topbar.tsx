@@ -1,4 +1,4 @@
-import { Search, Menu, User } from "lucide-react";
+import { Search, Menu } from "lucide-react";
 import { NotificationCenter } from "../components/NotificationComponents";
 import { UserMenu } from "../components/UserMenu";
 // import { cn } from "../components/ui-kit";
