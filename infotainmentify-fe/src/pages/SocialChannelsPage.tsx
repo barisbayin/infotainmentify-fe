@@ -35,7 +35,6 @@ import {
   Twitter,
   AlertTriangle,
   CheckCircle2,
-  AlertCircle,
   X,
 } from "lucide-react";
 
@@ -93,7 +92,7 @@ export default function SocialChannelsPage() {
         channelUrl: data.channelUrl ?? "",
         platformChannelId: data.platformChannelId ?? "",
         scopes: data.scopes ?? "",
-        rawTokensJson: "", // Güvenlik: Tokenlar geri gelmez, boş bırakıyoruz.
+        rawTokensJson: data.rawTokensJson ?? data.encryptedTokensJson ?? "", // Tokenları doldur
       });
     } catch {
       toast.error("Detay yüklenemedi.");
@@ -288,8 +287,8 @@ export default function SocialChannelsPage() {
                   <RefreshCw className="animate-spin" /> Yükleniyor...
                 </div>
               ) : (
-                <>
-                  <div className="space-y-4">
+                <div className="flex flex-col h-full">
+                  <div className="space-y-4 flex-1 flex flex-col">
                     {/* Platform Select */}
                     <div>
                       <Label className="mb-1.5">Platform</Label>
@@ -361,27 +360,26 @@ export default function SocialChannelsPage() {
                     </div>
 
                     {/* 🔥 JSON Token Input */}
-                    <div>
+                    <div className="flex-1 flex flex-col">
                       <Label className="mb-1.5">OAuth Tokens (JSON)</Label>
-                      <JsonInput
-                        value={form.rawTokensJson || ""}
-                        onChange={(val) =>
-                          setForm({ ...form, rawTokensJson: val })
-                        }
-                        placeholder={
-                          selectedId
-                            ? "Tokenları güncellemek için yeni JSON yapıştırın..."
-                            : '{\n  "access_token": "...",\n  "refresh_token": "..."\n}'
-                        }
-                      />
-                      <p className="text-[10px] text-zinc-500 mt-1.5 flex items-center gap-1.5">
-                        <AlertCircle size={10} className="text-amber-500" />
-                        Güvenlik gereği mevcut tokenlar görüntülenmez, sadece
-                        üzerine yazılabilir.
-                      </p>
+                      <div className="flex-1 flex flex-col min-h-0">
+                        <JsonInput
+                          value={form.rawTokensJson || ""}
+                          onChange={(val) =>
+                            setForm({ ...form, rawTokensJson: val })
+                          }
+                          placeholder={
+                            selectedId
+                              ? "Tokenları güncellemek için yeni JSON yapıştırın..."
+                              : '{\n  "access_token": "...",\n  "refresh_token": "..."\n}'
+                          }
+                          className="flex-1 min-h-[150px]"
+                        />
+                      </div>
+
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
 

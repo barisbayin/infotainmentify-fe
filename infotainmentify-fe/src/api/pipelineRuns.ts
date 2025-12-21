@@ -1,7 +1,7 @@
 import { http } from "./http";
 
 // Backend Enums ile uyumlu stringler
-export type RunStatus = "Pending" | "Running" | "Completed" | "Failed" | "Cancelled";
+export type RunStatus = "Pending" | "Running" | "Completed" | "Failed" | "Cancelled" | "WaitingForApproval";
 export type StageStatus = "Pending" | "Skipped" | "Running" | "Completed" | "Failed" | "Retrying" | "PermanentlyFailed";
 
 export type PipelineStageDto = {
@@ -21,6 +21,9 @@ export type PipelineRunListDto = {
     status: string;
     startedAt?: string;
     completedAt?: string;
+    stages?: PipelineStageDto[];
+    conceptName?: string;
+    videoTitle?: string;
 };
 
 export type PipelineRunDetailDto = {
@@ -37,6 +40,19 @@ export type CreatePipelineRunRequest = {
     templateId: number;
     autoStart: boolean;
 };
+
+export interface UploadResultItem {
+    Platform: string;     // "YouTube", "Instagram"
+    ChannelName: string;
+    VideoUrl: string | null;
+    IsSuccess: boolean;
+    ErrorMessage: string | null;
+}
+
+export interface UploadStagePayload {
+    Uploads: UploadResultItem[];
+    CompletedAt: string;
+}
 
 export const pipelineRunsApi = {
     list(conceptId?: string) { // 🔥 Eklendi
@@ -58,6 +74,12 @@ export const pipelineRunsApi = {
 
     start(id: number) {
         return http<{ message: string }>(`/api/pipeline-runs/${id}/start`, {
+            method: "POST",
+        });
+    },
+
+    approve(id: number) {
+        return http<{ message: string }>(`/api/pipeline-runs/${id}/approve`, {
             method: "POST",
         });
     },

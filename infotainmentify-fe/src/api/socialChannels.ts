@@ -18,6 +18,8 @@ export type SocialChannelDetailDto = {
     isTokenExpired: boolean;
     tokenExpiresAt?: string;
     scopes?: string;
+    rawTokensJson?: string;
+    encryptedTokensJson?: string;
 };
 
 export type SaveSocialChannelDto = {

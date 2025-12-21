@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import UploadConfigModal from "../components/UploadConfigModal";
 import { useDebounce } from "../hooks/useDebounce";
 import {
   pipelineTemplatesApi,
@@ -45,6 +46,7 @@ import {
   GripVertical,
   FolderOpen,
   AlertTriangle,
+  Settings,
 } from "lucide-react";
 
 // Backend Enum'ı ile eşleşen Tipler
@@ -64,6 +66,7 @@ const EMPTY_FORM: SavePipelineTemplateDto = {
   name: "",
   description: "",
   conceptId: 0,
+  autoPublish: false,
   stages: [],
 };
 
@@ -93,6 +96,12 @@ export default function PipelineTemplatesPage() {
   const [presetLoading, setPresetLoading] = useState(false);
 
   const [selectedConceptId, setSelectedConceptId] = useState<string>("");
+
+  // Upload Modal State
+  const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; stageIndex: number | null }>({
+    isOpen: false,
+    stageIndex: null,
+  });
 
   // --- LOAD DATA ---
   const loadData = async () => {
@@ -186,6 +195,7 @@ export default function PipelineTemplatesPage() {
         name: data.name,
         description: data.description ?? "",
         conceptId: data.conceptId,
+        autoPublish: data.autoPublish,
         // Sıralamayı garantiye al
         stages: data.stages.sort((a, b) => a.order - b.order),
       });
@@ -486,6 +496,21 @@ export default function PipelineTemplatesPage() {
                         placeholder="Opsiyonel"
                       />
                     </div>
+                    
+                    {/* Auto Publish Checkbox */}
+                    <div className="flex items-center gap-2 p-2 rounded-lg border border-zinc-800 bg-zinc-950/30">
+                        <input
+                            type="checkbox"
+                            id="autoPublish"
+                            checked={form.autoPublish}
+                            onChange={(e) => setForm({ ...form, autoPublish: e.target.checked })}
+                            className="w-4 h-4 accent-indigo-500 cursor-pointer"
+                        />
+                        <Label htmlFor="autoPublish" className="mb-0 cursor-pointer text-zinc-300 select-none">
+                            Otomatik Yayınla <span className="text-[10px] text-zinc-500">(Render sonrası upload)</span>
+                        </Label>
+                    </div>
+
                   </div>
 
                   {/* --- STAGE BUILDER --- */}
@@ -577,7 +602,16 @@ export default function PipelineTemplatesPage() {
                                 <span className="text-xs font-bold text-zinc-200 truncate">
                                   {stageLabel}
                                 </span>
-                                {stage.presetId ? (
+                                {stage.stageType === "Upload" ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setUploadModal({ isOpen: true, stageIndex: idx })}
+                                    className="h-5 text-[10px] px-2 py-0 ml-2 border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-indigo-400"
+                                  >
+                                    <Settings size={10} className="mr-1" /> Ayarlar
+                                  </Button>
+                                ) : stage.presetId ? (
                                   <Badge
                                     variant="brand"
                                     className="text-[9px] py-0 h-4 px-1.5 font-mono"
@@ -681,6 +715,21 @@ export default function PipelineTemplatesPage() {
           </div>
         </div>
       </Modal>
+      <UploadConfigModal
+        isOpen={uploadModal.isOpen}
+        onClose={() => setUploadModal({ isOpen: false, stageIndex: null })}
+        initialConfig={
+           uploadModal.stageIndex !== null && form.stages[uploadModal.stageIndex]
+            ? form.stages[uploadModal.stageIndex].optionsJson 
+            : undefined
+        }
+        onSave={(json) => {
+           if (uploadModal.stageIndex === null) return;
+           const newStages = [...form.stages];
+           newStages[uploadModal.stageIndex].optionsJson = json;
+           setForm({ ...form, stages: newStages });
+        }}
+      />
     </Page>
   );
 }

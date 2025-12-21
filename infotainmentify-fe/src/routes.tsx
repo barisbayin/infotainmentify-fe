@@ -25,6 +25,8 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 // 2. HENÜZ OLMAYANLAR (Dosyayı import etme, direkt BlankPage değişkenini kullan)
 // const DashboardPage = lazy(() => import("./pages/DashboardPage")); // ❌ BU DOSYA YOKSA PATLAR!
 
+const PipelineHistoryPage = lazy(() => import("./pages/PipelineHistoryPage"));
+
 export interface AppRoute {
   path: string;
   element: ComponentType;
@@ -48,6 +50,7 @@ export const routes: AppRoute[] = [
   { path: "/stt-presets", element: SttPresetsPage },
   { path: "/pipeline-templates", element: PipelineTemplatesPage },
   { path: "/pipeline-runs", element: PipelineRunsPage },
+  { path: "/pipeline-history", element: PipelineHistoryPage }, // 🔥 EKLENDİ
   { path: "/assets", element: AssetsPage },
 
   // --- GEÇİCİ SAYFALAR (Hepsi BlankPage'e gider) ---

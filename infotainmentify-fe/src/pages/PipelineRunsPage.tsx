@@ -65,6 +65,8 @@ const getStatusColor = (status: string) => {
       return "bg-zinc-800 text-zinc-400 border-zinc-700";
     case "Cancelled":
       return "bg-zinc-700 text-zinc-300 border-zinc-600";
+    case "WaitingForApproval":
+      return "bg-blue-500/10 text-blue-400 border-blue-500/20";
     default:
       return "bg-zinc-800 text-zinc-400";
   }
@@ -84,6 +86,8 @@ const getStatusLabel = (status: string) => {
       return "Bekliyor";
     case "Cancelled":
       return "İptal Edildi";
+    case "WaitingForApproval":
+      return "Onay Bekliyor";
     default:
       return status;
   }
@@ -219,7 +223,7 @@ const HistoryList = memo(({
  * 2. RunDetail (Sağ Taraf)
  * Shows the details of the selected run including stages timeline.
  */
-const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRenderClick }: { detail: PipelineRunDetailDto | null, loading: boolean, onOpenTimeline: (json: string) => void, onRetryStage: (runId: number, stageName: string) => void, onReRenderClick: (runId: number) => void }) => {
+const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRenderClick, onApprove }: { detail: PipelineRunDetailDto | null, loading: boolean, onOpenTimeline: (json: string) => void, onRetryStage: (runId: number, stageName: string) => void, onReRenderClick: (runId: number) => void, onApprove: (runId: number) => void }) => {
     const [activeTab, setActiveTab] = useState<"timeline" | "logs" | "video">("timeline");
     const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
@@ -281,6 +285,17 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                                  className="h-7 px-3 text-[10px] gap-1.5 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors"
                              >
                                  <RefreshCw size={12} /> Yeniden Render
+                             </Button>
+                         )}
+
+                        {detail.status === "WaitingForApproval" && (
+                             <Button
+                                 variant="primary"
+                                 size="sm"
+                                 onClick={() => onApprove(detail.id)}
+                                 className="h-7 px-3 text-[10px] gap-1.5 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20"
+                             >
+                                 <CheckCircle2 size={12} /> Onayla ve Yükle
                              </Button>
                          )}
                     </div>
@@ -863,6 +878,18 @@ export default function PipelineRunsPage() {
     }
   };
 
+
+
+  const handleApprove = async (runId: number) => {
+      try {
+          await pipelineRunsApi.approve(runId);
+          toast.success("Onaylandı, işlem devam ediyor...");
+          startPolling(runId);
+      } catch {
+          toast.error("Onay işlemi başarısız.");
+      }
+  };
+
   return (
     <Page>
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
@@ -924,7 +951,14 @@ export default function PipelineRunsPage() {
 
         {/* SAĞ: MONITOR (Memoized) */}
         <div className="col-span-12 lg:col-span-5 xl:col-span-6 flex flex-col h-full min-h-0">
-             <RunDetail detail={detail} loading={detailLoading} onOpenTimeline={openTimeline} onRetryStage={handleRetryStage} onReRenderClick={onReRenderClick} />
+             <RunDetail
+            detail={detail}
+            loading={detailLoading}
+            onOpenTimeline={openTimeline}
+            onRetryStage={handleRetryStage}
+            onReRenderClick={onReRenderClick}
+            onApprove={handleApprove}
+          />
         </div>
       </div>
 

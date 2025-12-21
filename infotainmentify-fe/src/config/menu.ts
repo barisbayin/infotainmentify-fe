@@ -34,6 +34,7 @@ export const MENU_CONFIG = [
         items: [
             { to: "/pipeline-runs", label: "Üretim Hattı (Pipeline)", icon: Layers },
             { to: "/pipeline-templates", label: "Üretim Hattı Şablonları", icon: LayoutTemplate },
+            { to: "/pipeline-history", label: "Yayın Geçmişi", icon: ListChecks }, // 🔥 EKLENDİ
             { to: "/render-presets", label: "Render Ayarları", icon: Film },
             { to: "/assets", label: "Medya Dosyaları", icon: Film },
         ],

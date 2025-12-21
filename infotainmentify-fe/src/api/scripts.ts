@@ -12,6 +12,8 @@ export type ScriptDetailDto = {
     id: number;
     topicId?: number;
     title: string;
+    description?: string;
+    tags?: string;
     content: string;
     scenesJson?: string;
     languageCode: string;
@@ -22,6 +24,8 @@ export type ScriptDetailDto = {
 export type SaveScriptDto = {
     topicId?: number;
     title: string;
+    description?: string;
+    tags?: string;
     content: string;
     scenesJson?: string;
     languageCode: string;

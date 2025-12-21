@@ -528,6 +528,7 @@ export function JsonInput({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   // Scroll Senkronizasyonu için Ref'ler
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -604,7 +605,10 @@ export function JsonInput({
         {/* 1. KATMAN: Renkli Kod (Arkada) */}
         <pre
           ref={highlightRef}
-          className="absolute inset-0 m-0 p-4 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words overflow-hidden pointer-events-none select-none"
+          className={cn(
+            "absolute inset-0 m-0 p-4 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words overflow-hidden pointer-events-none select-none transition-opacity duration-200",
+            isFocused ? "opacity-0" : "opacity-100" // Focuslanınca gizle
+          )}
           aria-hidden="true"
           dangerouslySetInnerHTML={{
             __html:
@@ -615,15 +619,20 @@ export function JsonInput({
           }}
         />
 
-        {/* 2. KATMAN: Editör (Önde - Şeffaf) */}
+        {/* 2. KATMAN: Editör (Önde) */}
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onScroll={handleScroll}
-          className="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-white font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words resize-none outline-none scrollbar-thin scrollbar-thumb-zinc-800 hover:scrollbar-thumb-zinc-700"
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={cn(
+             "absolute inset-0 w-full h-full p-4 bg-transparent font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words resize-none outline-none scrollbar-thin scrollbar-thumb-zinc-800 hover:scrollbar-thumb-zinc-700 transition-colors duration-200",
+             isFocused ? "text-zinc-300" : "text-transparent caret-white" // Focuslanınca göster
+          )}
           spellCheck={false}
-          // Placeholder'ı pre içinde gösteriyoruz, burayı boş bırakıyoruz ki çakışmasın
+          // Placeholder'ı pre içinde gösteriyoruz
         />
 
         {/* Validasyon Rozeti */}
@@ -835,5 +844,38 @@ export function ConfirmModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+
+/* ----------------------- TOOLTIP ----------------------- */
+export function Tooltip({
+  children,
+  content,
+  className,
+}: {
+  children: ReactNode;
+  content: ReactNode;
+  className?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div
+          className={cn(
+            "absolute z-50 px-2 py-1 text-xs text-white bg-zinc-900 border border-zinc-800 rounded shadow-lg -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none",
+            className
+          )}
+        >
+          {content}
+        </div>
+      )}
+    </div>
   );
 }

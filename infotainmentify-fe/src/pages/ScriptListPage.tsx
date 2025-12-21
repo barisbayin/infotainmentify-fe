@@ -13,7 +13,6 @@ import {
   Button,
   Input,
   Textarea,
-  Label,
   Badge,
   Table,
   THead,
@@ -40,7 +39,6 @@ import {
   FileText,
   LayoutList,
   Code,
-  Filter,
 } from "lucide-react";
 
 const EMPTY_FORM: SaveScriptDto = {
@@ -50,6 +48,8 @@ const EMPTY_FORM: SaveScriptDto = {
   estimatedDurationSec: 0,
   scenesJson: "",
   topicId: undefined,
+  description: "",
+  tags: "",
 };
 
 type TabType = "text" | "scenes" | "raw";
@@ -161,6 +161,8 @@ export default function ScriptsPage() {
         estimatedDurationSec: data.estimatedDurationSec,
         scenesJson: prettyScenes, // 🔥 Formatlanmış hali
         topicId: data.topicId,
+        description: data.description || "",
+        tags: data.tags || "",
       });
       setActiveTab("text");
     } catch {
@@ -209,10 +211,7 @@ export default function ScriptsPage() {
     setActiveTab("text"); // Tab'i de varsayılana döndür
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Kopyalandı!");
-  };
+
 
   return (
     <Page>
@@ -346,6 +345,34 @@ export default function ScriptsPage() {
                         setForm({ ...form, title: e.target.value })
                       }
                       className="bg-transparent border-transparent hover:border-zinc-700 focus:bg-zinc-950 focus:border-indigo-500 text-lg font-bold text-white px-0 h-auto py-1 transition-all"
+                    />
+                  </div>
+
+                  {/* Video Açıklaması */}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1 block">
+                      Video Açıklaması
+                    </label>
+                    <Textarea
+                      value={form.description || ""}
+                      onChange={(e) =>
+                        setForm({ ...form, description: e.target.value })
+                      }
+                      rows={2}
+                      className="bg-transparent border-transparent hover:border-zinc-700 focus:bg-zinc-950 focus:border-indigo-500 text-sm text-zinc-300 px-2 min-h-0 py-2 transition-all resize-none"
+                    />
+                  </div>
+
+                  {/* Etiketler */}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1 block">
+                      Etiketler
+                    </label>
+                    <Input
+                      value={form.tags || ""}
+                      onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                      className="bg-transparent border-transparent hover:border-zinc-700 focus:bg-zinc-950 focus:border-indigo-500 text-xs font-mono text-indigo-300 px-2 h-8 transition-all"
+                      placeholder="tag1, tag2, tag3"
                     />
                   </div>
 

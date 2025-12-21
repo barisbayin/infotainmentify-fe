@@ -18,6 +18,7 @@ export type StageConfigDto = {
     stageType: string;
     order: number;
     presetId?: number;
+    optionsJson?: string;
 };
 
 export type PipelineTemplateListDto = {
@@ -25,6 +26,7 @@ export type PipelineTemplateListDto = {
     name: string;
     conceptName: string;
     stageCount: number;
+    autoPublish: boolean;
     createdAt: string;
 };
 
@@ -34,6 +36,7 @@ export type PipelineTemplateDetailDto = {
     description?: string;
     conceptId: number;
     stages: StageConfigDto[];
+    autoPublish: boolean;
     createdAt: string;
     updatedAt?: string;
 };
@@ -42,6 +45,7 @@ export type SavePipelineTemplateDto = {
     name: string;
     description?: string;
     conceptId: number;
+    autoPublish: boolean;
     stages: StageConfigDto[];
 };
 
