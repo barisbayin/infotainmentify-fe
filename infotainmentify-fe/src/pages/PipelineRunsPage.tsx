@@ -42,6 +42,7 @@ import {
   MinusCircle,
   RefreshCcw,
   Terminal,
+  AlertCircle,
 } from "lucide-react";
 import { conceptsApi } from "../api/concepts";
 import { cn } from "../components/ui-kit";
@@ -87,7 +88,7 @@ const getStatusLabel = (status: string) => {
     case "Cancelled":
       return "İptal Edildi";
     case "WaitingForApproval":
-      return "Onay Bekliyor";
+      return "Onayda";
     default:
       return status;
   }
@@ -97,6 +98,8 @@ const getStageIcon = (status: string) => {
   switch (status) {
     case "Completed":
       return <CheckCircle2 size={18} className="text-emerald-500" />;
+    case "Outdated":
+      return <AlertCircle size={18} className="text-orange-500" />;
     case "Running":
       return <Loader2 size={18} className="text-amber-500 animate-spin" />;
     case "Failed":
@@ -277,16 +280,7 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                              {detail.startedAt ? new Date(detail.startedAt).toLocaleString() : "Başlamadı"}
                          </span>
                          
-                         {detail.status === "Completed" && (
-                             <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => onReRenderClick(detail.id)}
-                                 className="h-7 px-3 text-[10px] gap-1.5 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors"
-                             >
-                                 <RefreshCw size={12} /> Yeniden Render
-                             </Button>
-                         )}
+
 
                         {detail.status === "WaitingForApproval" && (
                              <Button
@@ -295,7 +289,7 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                                  onClick={() => onApprove(detail.id)}
                                  className="h-7 px-3 text-[10px] gap-1.5 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20"
                              >
-                                 <CheckCircle2 size={12} /> Onayla ve Yükle
+                                 <CheckCircle2 size={12} /> Onayla
                              </Button>
                          )}
                     </div>
@@ -395,17 +389,18 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                             const isCompleted = stage.status === "Completed";
                             const isFailed = stage.status.includes("Failed");
                             const isSkipped = stage.status === "Skipped";
+                            const isOutdated = stage.status === "Outdated";
 
                             return (
                                 <div
                                     key={idx}
                                     className={cn(
-                                        "relative z-10 flex gap-4 mb-4 last:mb-0 group transition-all duration-500", // mb-8 -> mb-4, gap-5 -> gap-4
+                                        "relative z-10 flex items-center gap-4 mb-4 last:mb-0 group transition-all duration-500", // mb-8 -> mb-4, gap-5 -> gap-4
                                         isRunning ? "opacity-100 translate-x-1" : "opacity-90"
                                     )}
                                 >
                                     {/* İkon Kutusu */}
-                                    <div className="relative pt-1"> {/* Hizalama için pt-1 */}
+                                    <div className="relative">
                                         {isRunning && (
                                             <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-md animate-pulse"></div>
                                         )}
@@ -418,6 +413,8 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                                                     ? "border-emerald-500/50 text-emerald-500 bg-emerald-500/5"
                                                     : isFailed
                                                     ? "border-red-500/50 text-red-500 bg-red-500/5"
+                                                    : isOutdated
+                                                    ? "border-orange-500/50 text-orange-500 bg-orange-500/5"
                                                     : "border-zinc-800 text-zinc-600"
                                             )}
                                         >
@@ -484,6 +481,10 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-500/10 text-zinc-500 border border-zinc-500/20">
                                                         Atlandı
                                                     </span>
+                                                ) : isOutdated ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                                                        Güncel Değil
+                                                    </span>
                                                 ) : (
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-800/50 text-zinc-500 border border-zinc-700/50">
                                                         Bekliyor
@@ -503,14 +504,41 @@ const RunDetail = memo(({ detail, loading, onOpenTimeline, onRetryStage, onReRen
                                                 </button>
                                             )}
 
-                                            {/* RENDER VIDEO BUTTON */}
-                                            {(stage.stageType === "Render" || stage.stageType === "Video") && stage.status === "Completed" && (
-                                                 <button 
-                                                    onClick={() => setActiveTab("video")}
-                                                    className="h-8 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 text-xs font-medium"
-                                                 >
-                                                     <Play size={14} fill="currentColor" /> İzle
-                                                 </button>
+
+
+                                            {/* RENDER / VIDEO ACTIONS */}
+                                            {(stage.stageType === "Render" || stage.stageType === "Video") && (
+                                                <>
+                                                    {/* RE-RENDER BUTTON (Outdated or Completed) */}
+                                                    {(stage.status === "Outdated" || stage.status === "Completed") && (
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onReRenderClick(detail.id);
+                                                            }}
+                                                            className={cn(
+                                                                "h-8 px-4 rounded-lg flex items-center gap-2 text-xs font-medium transition-all shadow-lg",
+                                                                stage.status === "Outdated" 
+                                                                    ? "bg-orange-600 hover:bg-orange-500 text-white shadow-orange-500/20 animate-pulse" 
+                                                                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+                                                            )}
+                                                            title="Yeniden Render Al"
+                                                        >
+                                                            <RefreshCw size={14} /> 
+                                                            {stage.status === "Outdated" ? "Güncelle (Render)" : "Yeniden"}
+                                                        </button>
+                                                    )}
+
+                                                    {/* WATCH BUTTON */}
+                                                    {stage.status === "Completed" && (
+                                                        <button 
+                                                            onClick={() => setActiveTab("video")}
+                                                            className="h-8 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 text-xs font-medium"
+                                                        >
+                                                            <Play size={14} fill="currentColor" /> İzle
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                             
                                             {stage.durationMs > 0 && (
@@ -1012,7 +1040,7 @@ export default function PipelineRunsPage() {
         maxWidth="5xl"
       >
          <div className="h-[60vh]">
-            {timelineData && <TimelineViewer data={timelineData} />}
+            {timelineData && <TimelineViewer data={timelineData} runId={detail?.id} />}
          </div>
          <div className="flex justify-end pt-4 border-t border-zinc-800">
             <Button variant="secondary" onClick={() => setTimelineData(null)}>Kapat</Button>

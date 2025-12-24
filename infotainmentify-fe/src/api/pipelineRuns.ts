@@ -2,7 +2,7 @@ import { http } from "./http";
 
 // Backend Enums ile uyumlu stringler
 export type RunStatus = "Pending" | "Running" | "Completed" | "Failed" | "Cancelled" | "WaitingForApproval";
-export type StageStatus = "Pending" | "Skipped" | "Running" | "Completed" | "Failed" | "Retrying" | "PermanentlyFailed";
+export type StageStatus = "Pending" | "Skipped" | "Running" | "Completed" | "Failed" | "Retrying" | "PermanentlyFailed" | "Outdated";
 
 export type PipelineStageDto = {
     stageType: string;
@@ -99,5 +99,11 @@ export const pipelineRunsApi = {
 
     getLogs(id: number) {
         return http<string[]>(`/api/pipeline-runs/${id}/logs`);
+    },
+
+    regenerateSceneImage(runId: number, sceneIndex: number) {
+        return http<{ message: string; url: string; sceneIndex: number }>(`/api/pipeline-runs/${runId}/scenes/${sceneIndex}/regenerate`, {
+            method: "POST"
+        });
     }
 };
