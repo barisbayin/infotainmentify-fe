@@ -1,0 +1,1 @@
+import{h as t}from"./index-BDG7les7.js";const s={list(){return t("/api/image-presets")},get(e){return t(`/api/image-presets/${e}`)},create(e){return t("/api/image-presets",{method:"POST",body:JSON.stringify(e)})},update(e,r){return t(`/api/image-presets/${e}`,{method:"PUT",body:JSON.stringify(r)})},delete(e){return t(`/api/image-presets/${e}`,{method:"DELETE"})}};export{s as i};

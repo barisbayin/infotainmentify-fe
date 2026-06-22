@@ -1,0 +1,112 @@
+import { http } from "./http";
+
+// Backend Enums ile uyumlu stringler
+export type RunStatus = "Pending" | "Running" | "Completed" | "Failed" | "Cancelled" | "WaitingForApproval";
+export type StageStatus = "Pending" | "Skipped" | "Running" | "Completed" | "Failed" | "Retrying" | "PermanentlyFailed" | "Outdated";
+
+export type PipelineStageDto = {
+    stageType: string;
+    status: StageStatus;
+    startedAt?: string;
+    finishedAt?: string;
+    error?: string;
+    durationMs: number;
+    outputJson: string;
+};
+
+export type PipelineRunListDto = {
+    id: number;
+    templateName: string; // Backend'den bu isimle geliyor
+    runContextTitle?: string;
+    status: string;
+    startedAt?: string;
+    completedAt?: string;
+    stages?: PipelineStageDto[];
+    conceptName?: string;
+    videoTitle?: string;
+};
+
+export type PipelineRunDetailDto = {
+    id: number;
+    status: RunStatus;
+    startedAt?: string;
+    completedAt?: string;
+    errorMessage?: string;
+    finalVideoUrl?: string;
+    finalVideoWidth?: number;
+    finalVideoHeight?: number;
+    finalVideoAspectRatio?: string;
+    stages: PipelineStageDto[];
+};
+
+export type CreatePipelineRunRequest = {
+    templateId: number;
+    autoStart: boolean;
+};
+
+export interface UploadResultItem {
+    Platform: string;     // "YouTube", "Instagram"
+    ChannelName: string;
+    VideoUrl: string | null;
+    IsSuccess: boolean;
+    ErrorMessage: string | null;
+}
+
+export interface UploadStagePayload {
+    Uploads: UploadResultItem[];
+    CompletedAt: string;
+}
+
+export const pipelineRunsApi = {
+    list(conceptId?: string) { // 🔥 Eklendi
+        const p = new URLSearchParams();
+        if (conceptId) p.set("conceptId", conceptId);
+        return http<PipelineRunListDto[]>(`/api/pipeline-runs?${p.toString()}`);
+    },
+
+    get(id: number) {
+        return http<PipelineRunDetailDto>(`/api/pipeline-runs/${id}`);
+    },
+
+    create(dto: CreatePipelineRunRequest) {
+        return http<{ runId: number; message: string }>("/api/pipeline-runs", {
+            method: "POST",
+            body: JSON.stringify(dto),
+        });
+    },
+
+    start(id: number) {
+        return http<{ message: string }>(`/api/pipeline-runs/${id}/start`, {
+            method: "POST",
+        });
+    },
+
+    approve(id: number) {
+        return http<{ message: string }>(`/api/pipeline-runs/${id}/approve`, {
+            method: "POST",
+        });
+    },
+
+    retryStage(runId: number, stageType: string) {
+        return http<any>(`/api/pipeline-runs/retry/${runId}/${stageType}`, {
+            method: "POST"
+        });
+    },
+
+    reRender(dto: { runId: number; newRenderPresetId?: number }) {
+        return http<{ message: string }>("/api/pipeline-runs/re-render", {
+            method: "POST",
+            body: JSON.stringify(dto),
+        });
+    },
+
+    getLogs(id: number) {
+        return http<string[]>(`/api/pipeline-runs/${id}/logs`);
+    },
+
+    regenerateSceneImage(runId: number, sceneIndex: number) {
+        return http<{ message: string; url: string; sceneIndex: number }>(`/api/pipeline-runs/${runId}/scenes/${sceneIndex}/regenerate`, {
+            method: "POST"
+        });
+    }
+};
