@@ -48,11 +48,14 @@ import {
 
 const STAGE_TYPES = [
   { value: "Topic", label: "Konu" },
+  { value: "CreativeDirector", label: "Creative Director" },
   { value: "Script", label: "Senaryo" },
+  { value: "Storyboard", label: "Storyboard" },
   { value: "Image", label: "Gorsel" },
   { value: "Tts", label: "Seslendirme" },
   { value: "Stt", label: "Altyazi Zamanlama" },
   { value: "Video", label: "Video AI" },
+  { value: "EditPlan", label: "Edit Plan" },
   { value: "SceneLayout", label: "Kurgu / Timeline" },
   { value: "Render", label: "Final Render" },
   { value: "Thumbnail", label: "Kapak" },
@@ -107,6 +110,16 @@ type PresetOption = {
   value: string;
 };
 
+type PresetOptionSource =
+  | "none"
+  | "topic"
+  | "script"
+  | "image"
+  | "tts"
+  | "stt"
+  | "video"
+  | "render";
+
 type WorkflowNodePositionMap = Record<string, { x: number; y: number }>;
 
 type WorkflowBlueprint = {
@@ -138,7 +151,7 @@ const WORKFLOW_BLUEPRINTS: WorkflowBlueprint[] = [
       "8-15 dakika pilot long-form icin guvenli timeline, render ve kapak akisi.",
     productionProfile: "LongForm",
     autoPublish: false,
-    stages: ["Topic", "Script", "Image", "Tts", "Stt", "SceneLayout", "Render", "Thumbnail"],
+    stages: ["Topic", "CreativeDirector", "Script", "Storyboard", "Image", "Tts", "Stt", "EditPlan", "SceneLayout", "Thumbnail", "Render", "Upload"],
   },
   {
     key: "audio-first",
@@ -148,7 +161,7 @@ const WORKFLOW_BLUEPRINTS: WorkflowBlueprint[] = [
       "Ses odakli icerik icin anlatim, altyazi, loop gorsel, render ve kapak akisi.",
     productionProfile: "Podcast",
     autoPublish: false,
-    stages: ["Topic", "Script", "Image", "Tts", "Stt", "SceneLayout", "Render", "Thumbnail"],
+    stages: ["Topic", "CreativeDirector", "Script", "Image", "Tts", "Stt", "EditPlan", "SceneLayout", "Thumbnail", "Render", "Upload"],
   },
 ];
 
@@ -184,6 +197,30 @@ const buildStagesFromBlueprint = (blueprint: WorkflowBlueprint): StageConfigDto[
     stageType,
     order: index + 1,
   }));
+
+const getPresetOptionSource = (stageType: string): PresetOptionSource => {
+  switch (stageType) {
+    case "Topic":
+      return "topic";
+    case "Script":
+      return "script";
+    case "Image":
+    case "Thumbnail":
+      return "image";
+    case "Tts":
+      return "tts";
+    case "Stt":
+      return "stt";
+    case "Video":
+    case "VideoAI":
+      return "video";
+    case "SceneLayout":
+    case "Render":
+      return "render";
+    default:
+      return "none";
+  }
+};
 
 export default function PipelineTemplatesPage() {
   const navigate = useNavigate();
@@ -233,6 +270,10 @@ export default function PipelineTemplatesPage() {
   const [workflowNodePositions, setWorkflowNodePositions] =
     useState<WorkflowNodePositionMap>({});
   const workflowLayoutSaveTimer = useRef<number | null>(null);
+  const healthRequestSeq = useRef(0);
+  const presetOptionsCache = useRef<
+    Record<string, PresetOption[] | Promise<PresetOption[]>>
+  >({});
 
   const saveWorkflowNodePositions = (positions: WorkflowNodePositionMap) => {
     const workflowLayoutJson = serializeWorkflowNodePositions(positions);
@@ -283,56 +324,79 @@ export default function PipelineTemplatesPage() {
   };
 
   const loadHealth = async (templateId: number) => {
+    const requestSeq = ++healthRequestSeq.current;
     setHealthLoading(true);
     try {
       const data = await pipelineTemplatesApi.health(templateId);
-      setHealth(data);
+      if (requestSeq === healthRequestSeq.current) {
+        setHealth(data);
+      }
     } catch (error) {
       console.error("Workflow health alinamadi", error);
-      setHealth(null);
-      toast.error("Hazirlik kontrolu alinamadi.");
+      if (requestSeq === healthRequestSeq.current) {
+        setHealth(null);
+        toast.error("Hazirlik kontrolu alinamadi.");
+      }
     } finally {
-      setHealthLoading(false);
+      if (requestSeq === healthRequestSeq.current) {
+        setHealthLoading(false);
+      }
     }
   };
 
   const loadPresetOptionsForStage = async (stageType: string) => {
-    let data: any[] = [];
+    const source = getPresetOptionSource(stageType);
+    if (source === "none") return [];
 
-    switch (stageType) {
-      case "Topic":
-        data = await topicPresetsApi.list();
-        break;
-      case "Script":
-        data = await scriptPresetsApi.list();
-        break;
-      case "Image":
-      case "Thumbnail":
-        data = await imagePresetsApi.list();
-        break;
-      case "Tts":
-        data = await ttsPresetsApi.list();
-        break;
-      case "Stt":
-        data = await sttPresetsApi.list();
-        break;
-      case "Video":
-      case "VideoAI":
-        data = await videoPresetsApi.list();
-        break;
-      case "SceneLayout":
-      case "Render":
-        data = await renderPresetsApi.list();
-        break;
-      default:
-        data = [];
-        break;
+    const cached = presetOptionsCache.current[source];
+    if (cached) return await cached;
+
+    const request = (async () => {
+      let data: any[] = [];
+
+      switch (source) {
+        case "topic":
+          data = await topicPresetsApi.list();
+          break;
+        case "script":
+          data = await scriptPresetsApi.list();
+          break;
+        case "image":
+          data = await imagePresetsApi.list();
+          break;
+        case "tts":
+          data = await ttsPresetsApi.list();
+          break;
+        case "stt":
+          data = await sttPresetsApi.list();
+          break;
+        case "video":
+          data = await videoPresetsApi.list();
+          break;
+        case "render":
+          data = await renderPresetsApi.list();
+          break;
+        default:
+          data = [];
+          break;
+      }
+
+      return data.map((preset) => ({
+        label: preset.name,
+        value: preset.id.toString(),
+      }));
+    })();
+
+    presetOptionsCache.current[source] = request;
+
+    try {
+      const options = await request;
+      presetOptionsCache.current[source] = options;
+      return options;
+    } catch (error) {
+      delete presetOptionsCache.current[source];
+      throw error;
     }
-
-    return data.map((preset) => ({
-      label: preset.name,
-      value: preset.id.toString(),
-    }));
   };
 
   useEffect(() => {
@@ -434,7 +498,8 @@ export default function PipelineTemplatesPage() {
         stages: data.stages.sort((a, b) => a.order - b.order),
       });
       setWorkflowNodePositions(parseWorkflowNodePositions(data.workflowLayoutJson));
-      await loadHealth(id);
+      setHealth(null);
+      void loadHealth(id);
     } catch {
       toast.error("Detay yuklenemedi.");
     } finally {
@@ -443,6 +508,7 @@ export default function PipelineTemplatesPage() {
   };
 
   const handleNew = () => {
+    healthRequestSeq.current += 1;
     setSelectedId(null);
     setForm(EMPTY_FORM);
     setHealth(null);
@@ -511,6 +577,11 @@ export default function PipelineTemplatesPage() {
   const openStagePresetModal = async (index: number) => {
     const stage = form.stages[index];
     if (!stage) return;
+
+    if (stage.stageType === "CreativeDirector" || stage.stageType === "Storyboard" || stage.stageType === "EditPlan") {
+      toast(`${stageDisplayLabel(stage.stageType)} adimi Script presetini kullanir; ekstra preset gerektirmez.`);
+      return;
+    }
 
     if (stage.stageType === "Upload") {
       setUploadModal({ isOpen: true, stageIndex: index });
@@ -1049,6 +1120,7 @@ export default function PipelineTemplatesPage() {
                         {form.stages.map((stage, index) => {
                           const stageLabel =
                             stageDisplayLabel(stage.stageType);
+                          const stageUsesPreset = stage.stageType !== "CreativeDirector" && stage.stageType !== "Storyboard" && stage.stageType !== "EditPlan";
 
                           return (
                             <div
@@ -1076,6 +1148,10 @@ export default function PipelineTemplatesPage() {
                                     >
                                       <Settings size={10} className="mr-1" /> Ayar
                                     </Button>
+                                  ) : !stageUsesPreset ? (
+                                    <span className="ml-1 rounded-full bg-zinc-800/40 px-2 py-0.5 font-mono text-[9px] text-zinc-500 ring-1 ring-inset ring-zinc-700/40">
+                                      preset yok
+                                    </span>
                                   ) : (
                                     <button
                                       type="button"
@@ -1308,12 +1384,37 @@ export default function PipelineTemplatesPage() {
             ? form.stages[uploadModal.stageIndex].optionsJson
             : undefined
         }
-        onSave={(json) => {
+        onSave={async (json) => {
           if (uploadModal.stageIndex === null) return;
           const newStages = [...form.stages];
           newStages[uploadModal.stageIndex].optionsJson = json;
-          setForm({ ...form, stages: newStages });
+          const nextForm = { ...form, stages: newStages };
+          setForm(nextForm);
           setHealth(null);
+          if (selectedId) {
+            setDetailLoading(true);
+            try {
+              await pipelineTemplatesApi.update(selectedId, nextForm);
+              const saved = await pipelineTemplatesApi.get(selectedId);
+              setForm({
+                name: saved.name,
+                description: saved.description ?? "",
+                conceptId: saved.conceptId,
+                productionProfile: saved.productionProfile ?? "Generic",
+                workflowLayoutJson: saved.workflowLayoutJson,
+                autoPublish: saved.autoPublish,
+                stages: saved.stages.sort((a, b) => a.order - b.order),
+              });
+              await loadHealth(selectedId);
+              toast.success("Upload hedefi kaydedildi.");
+              loadData();
+            } catch {
+              toast.error("Upload hedefi kaydedilemedi.");
+              throw new Error("Upload hedefi kaydedilemedi.");
+            } finally {
+              setDetailLoading(false);
+            }
+          }
         }}
       />
 

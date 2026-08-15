@@ -25,6 +25,8 @@ import {
   NumberInput,
 } from "../components/ui-kit";
 import { HelpLabel } from "../components/FieldHelp";
+import { PromptContractGuard } from "../components/PromptContractGuard";
+import { AdvancedSection, PromptPreviewPanel } from "../components/PromptPreviewPanel";
 import {
   Plus,
   Trash2,
@@ -52,12 +54,11 @@ const EMPTY_FORM: SaveScriptPresetDto = {
   systemInstruction: "",
 };
 
-const LONG_FORM_SCRIPT_SYSTEM = `You are a senior YouTube long-form scriptwriter for educational infotainment videos.
+const LONG_FORM_SCRIPT_SYSTEM = `You are a senior YouTube long-form scriptwriter and scene director for educational infotainment videos.
 You write clean narration for TTS, not screenplay directions.
-Return only valid JSON. Do not use markdown fences or commentary.
-The JSON root must be an object with: title, description, tags, scenes.
-Each scene must include: scene, audioText, visualPrompt, durationSec.
-Use chapter/section thinking internally, but keep every scene self-contained for image and TTS generation.`;
+You also provide concise scene-direction intent so downstream Storyboard, Image, EditPlan and Render stages can make human-like editing decisions.
+Follow the backend-provided JSON contract exactly. Do not invent unsupported top-level sections.
+Keep narration coherent across scenes; every scene must feel like part of one continuous essay.`;
 
 const LONG_FORM_SCRIPT_PROMPT = `Create a long-form YouTube video script about: {Topic}
 
@@ -65,36 +66,35 @@ Language: {Language}
 Tone: {Tone}
 Target duration: {Duration} seconds
 
+Video format:
+- Long-form YouTube video.
+- 16:9 horizontal video.
+- The final video should feel deliberately edited, not like disconnected captions.
+- The visual style should follow the Topic document and production brief.
+
 Structure:
 1. Strong hook in the first 20 seconds.
 2. Short intro that promises the payoff.
-3. 4 to 6 clear chapters/sections.
+3. 4 to 7 clear chapters/sections.
 4. Smooth transitions between chapters.
 5. Short recap near the end.
 6. Outro with a natural call to action.
 
 Scene rules:
-- Create 12 to 18 scenes.
-- Each scene should be 25 to 45 seconds.
+- Create enough narration scenes for long-form pacing, usually 45 to 80 scenes for an 8-12 minute video.
+- Prefer 6 to 14 seconds per script scene. Important ideas can be slightly longer.
 - audioText should be natural narration, ready for TTS.
-- visualPrompt should describe a cinematic 16:9 visual for the scene.
+- visualPrompt should describe one image-generation-ready 16:9 visual for the scene.
 - Avoid on-screen text requirements inside visualPrompt.
+- Do not ask the image generator to render labels, subtitles, UI, logos, watermarks, or written paragraphs.
+- Use sceneRole, scenePurpose, viewerQuestion, emotionalBeat, visualType, cameraPlan, overlayText, sfxCue, transitionIntent and chapterTitle to explain how the scene should be edited.
+- Vary visualType and cameraPlan across consecutive scenes.
+- Use a mix of cinematic_image, broll, map, timeline, diagram, quote_card, comparison and text_card when they fit the idea.
+- overlayText should be rare and shorter than 6 words.
+- sfxCue should be sparse and meaningful.
+- Let Storyboard/EditPlan handle multiple visual beats inside a scene; do not force one script scene for every 4 seconds.
 - Keep the total estimated duration close to {Duration} seconds.
-
-Output exactly this JSON shape:
-{
-  "title": "SEO friendly YouTube title",
-  "description": "2-3 paragraph YouTube description",
-  "tags": ["keyword one", "keyword two", "keyword three"],
-  "scenes": [
-    {
-      "scene": 1,
-      "audioText": "Narration text...",
-      "visualPrompt": "Cinematic 16:9 visual description...",
-      "durationSec": 35
-    }
-  ]
-}`;
+`;
 
 export default function ScriptPresetsPage() {
   const [items, setItems] = useState<ScriptPresetListDto[]>([]);
@@ -114,6 +114,12 @@ export default function ScriptPresetsPage() {
     title: string;
     content: string;
   } | null>(null);
+  const effectiveSystemInstruction =
+    form.systemInstruction?.trim() || LONG_FORM_SCRIPT_SYSTEM;
+  const effectivePromptTemplate =
+    form.promptTemplate.trim() || LONG_FORM_SCRIPT_PROMPT;
+  const isUsingDefaultScriptPrompt =
+    !form.systemInstruction?.trim() || !form.promptTemplate.trim();
 
   const loadData = async () => {
     setLoading(true);
@@ -187,8 +193,8 @@ export default function ScriptPresetsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.promptTemplate.trim()) {
-      toast.error("Ad ve Prompt Şablonu zorunludur.");
+    if (!form.name.trim()) {
+      toast.error("Preset adi zorunludur.");
       return;
     }
     if (!form.userAiConnectionId) {
@@ -533,17 +539,67 @@ export default function ScriptPresetsPage() {
                     </div>
                   </div>
 
+                  <PromptPreviewPanel
+                    title="Senaryo prompt preview"
+                    description="Alanlari bos birakirsan sistem long-form varsayilanini kullanir. Burada uretime gidecek etkili prompt'u gorursun."
+                    systemInstruction={effectiveSystemInstruction}
+                    promptTemplate={effectivePromptTemplate}
+                    replacements={{
+                      Topic:
+                        "Title: Why Do We Procrastinate Even When We Know Better?\nPremise: A funny science-backed explanation of procrastination as emotion regulation.\nCentral question: Why does the brain choose short-term relief over long-term goals?",
+                      MainTitle: "Why Do We Procrastinate Even When We Know Better?",
+                      BriefTitle: "Why Do We Procrastinate Even When We Know Better?",
+                      Angle: "Procrastination is emotion regulation with bad marketing.",
+                      Audience: "Curious YouTube viewers who enjoy funny but science-grounded explanations.",
+                      TargetDuration: `${form.targetDurationSec} seconds`,
+                      MustCover: "instant gratification, anxiety avoidance, dopamine, practical payoff",
+                      Avoid: "generic productivity guru advice",
+                      Notes: "Use clear examples and visual comedy potential.",
+                      Tone: form.tone,
+                      Duration: form.targetDurationSec,
+                      Language: form.language,
+                      ConceptProfile:
+                        "Whiteboardly long-form educational comedy profile with strict doodle visual identity.",
+                      ConceptName: "Whiteboardly",
+                      ChannelPromise: "Explain serious ideas with simple funny visual metaphors.",
+                      ConceptAudience: "Smart casual viewers who like science explained without stiffness.",
+                      ConceptTone: "Funny, educational, sarcastic, scientifically grounded",
+                      VisualStyle: "Simple black-and-white stick figure educational doodles",
+                      StyleBible: "Minimal black marker doodles, expressive stick figures, clean white background.",
+                      CharacterBible: "Recurring simple stick figure cast with exaggerated expressions.",
+                      TextPolicy: "Short handwritten phrases only when useful.",
+                      ContentRules: "Keep ideas surprising, clear, and evidence-aware.",
+                      DefaultDurationSec: form.targetDurationSec,
+                    }}
+                    contextItems={[
+                      { label: "Tone", value: form.tone },
+                      { label: "Duration", value: `${form.targetDurationSec} sn` },
+                      { label: "Language", value: form.language },
+                      { label: "Hook / CTA", value: `${form.includeHook ? "Hook" : "No hook"} / ${form.includeCta ? "CTA" : "No CTA"}` },
+                    ]}
+                  />
+
+                  <AdvancedSection
+                    title="Gelismis senaryo prompt override"
+                    description="Normalde konsept + brief + backend JSON contract yeterli. Sadece script davranisini bilerek degistirmek istediginde doldur."
+                  >
+                  {isUsingDefaultScriptPrompt && (
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      Bos alanlar backend long-form varsayilanlariyla calisir. Sadece ozel bir davranis istiyorsan bu bolumu doldur.
+                    </div>
+                  )}
+
                   {/* System Prompt */}
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
-                      <HelpLabel help="Modelin rolu ve cikti disiplini. JSON formatini, sahne kurallarini ve anlatim standardini burada sabitle.">
-                        System Instruction
+                      <HelpLabel help="Opsiyonel. Bos birakirsan backend long-form senaryo yazari rolunu ve JSON disiplinini otomatik kullanir.">
+                        System Instruction (opsiyonel)
                       </HelpLabel>
                       <button
                         onClick={() =>
                           setPreviewModal({
                             title: "System Instruction",
-                            content: form.systemInstruction || "",
+                            content: effectiveSystemInstruction,
                           })
                         }
                         className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -563,15 +619,14 @@ export default function ScriptPresetsPage() {
                   {/* Prompt Template (Flex-1) */}
                   <div className="flex flex-col flex-1 min-h-[200px]">
                     <div className="flex justify-between items-center mb-1.5">
-                      <HelpLabel help="Topic, Tone, Duration ve Language degiskenleri burada doldurulur. Stage parser icin JSON root object ve scenes array istemeyi unutma.">
-                        Prompt Şablonu{" "}
-                        <span className="text-indigo-400">*</span>
+                      <HelpLabel help="Opsiyonel. Bos birakirsan konsept, brief, topic ve sure bilgisini kullanan standart long-form script prompt'u calisir.">
+                        Prompt Sablonu (opsiyonel)
                       </HelpLabel>
                       <button
                         onClick={() =>
                           setPreviewModal({
-                            title: "Prompt Şablonu",
-                            content: form.promptTemplate,
+                            title: "Prompt Sablonu",
+                            content: effectivePromptTemplate,
                           })
                         }
                         className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -585,9 +640,17 @@ export default function ScriptPresetsPage() {
                       onChange={(e) =>
                         setForm({ ...form, promptTemplate: e.target.value })
                       }
-                      placeholder="Örn: Write a script about {Topic} with a {Tone} tone..."
+                      placeholder="Bos birak: backend long-form script prompt'unu kullansin."
                     />
                   </div>
+
+                  <PromptContractGuard
+                    kind="script"
+                    systemInstruction={effectiveSystemInstruction}
+                    promptTemplate={effectivePromptTemplate}
+                    targetDurationSec={form.targetDurationSec}
+                  />
+                  </AdvancedSection>
                 </>
               )}
             </div>

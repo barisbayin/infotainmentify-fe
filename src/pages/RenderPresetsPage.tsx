@@ -72,10 +72,26 @@ const EMPTY_FORM: SaveRenderPresetDto = {
     voiceVolumePercent: 100,
     musicVolumePercent: 25,
     sfxVolumePercent: 75,
+    enableSfx: true,
+    useSyntheticSfxFallback: true,
+    sfxLibraryPath: "",
     enableDucking: true,
     duckingFactor: 30,
     fadeAudioInOut: true,
     fadeDurationSec: 0.5,
+    enableVoiceLoudnessNormalization: true,
+    voiceLoudnessTargetI: -16,
+    voiceLoudnessTargetTp: -1.5,
+    voiceLoudnessRange: 11,
+    duckingThreshold: 0.05,
+    duckingRatio: 5,
+    duckingAttackMs: 80,
+    duckingReleaseMs: 420,
+    finalAudioBitrateKbps: 192,
+    enableFinalAudioQa: true,
+    enableEditorAudioCuts: true,
+    maxEditorAudioOffsetSec: 0.22,
+    voiceMicroFadeSec: 0.04,
   },
   visualEffectsSettings: {
     enableKenBurns: true,
@@ -87,6 +103,17 @@ const EMPTY_FORM: SaveRenderPresetDto = {
     minSceneDurationForBrollSec: 18,
     brollSegmentDurationSec: 10,
     maxBrollCutsPerScene: 5,
+    enableOverlayText: false,
+    outroHoldSec: 0,
+    enableEditorialTiming: true,
+    hookMinVisualHoldSec: 1.25,
+    bodyMinVisualHoldSec: 1.8,
+    emphasisMinVisualHoldSec: 1.1,
+    maxVisualHoldSec: 7,
+    anchorSnapWindowSec: 0.9,
+    anchorMinConfidence: 0.58,
+    fastCutThresholdSec: 1.6,
+    maxConsecutiveFastCuts: 2,
   },
   brandingSettings: {
     enableWatermark: false,
@@ -126,10 +153,26 @@ const LONG_FORM_RENDER_FORM: SaveRenderPresetDto = {
     voiceVolumePercent: 100,
     musicVolumePercent: 12,
     sfxVolumePercent: 45,
+    enableSfx: true,
+    useSyntheticSfxFallback: true,
+    sfxLibraryPath: "",
     enableDucking: true,
     duckingFactor: 20,
     fadeAudioInOut: true,
     fadeDurationSec: 1.5,
+    enableVoiceLoudnessNormalization: true,
+    voiceLoudnessTargetI: -16,
+    voiceLoudnessTargetTp: -1.5,
+    voiceLoudnessRange: 11,
+    duckingThreshold: 0.045,
+    duckingRatio: 4,
+    duckingAttackMs: 90,
+    duckingReleaseMs: 520,
+    finalAudioBitrateKbps: 192,
+    enableFinalAudioQa: true,
+    enableEditorAudioCuts: true,
+    maxEditorAudioOffsetSec: 0.20,
+    voiceMicroFadeSec: 0.04,
   },
   visualEffectsSettings: {
     enableKenBurns: true,
@@ -141,6 +184,17 @@ const LONG_FORM_RENDER_FORM: SaveRenderPresetDto = {
     minSceneDurationForBrollSec: 18,
     brollSegmentDurationSec: 9,
     maxBrollCutsPerScene: 6,
+    enableOverlayText: false,
+    outroHoldSec: 1.8,
+    enableEditorialTiming: true,
+    hookMinVisualHoldSec: 1.25,
+    bodyMinVisualHoldSec: 1.8,
+    emphasisMinVisualHoldSec: 1.1,
+    maxVisualHoldSec: 7,
+    anchorSnapWindowSec: 0.9,
+    anchorMinConfidence: 0.58,
+    fastCutThresholdSec: 1.6,
+    maxConsecutiveFastCuts: 2,
   },
   brandingSettings: {
     enableWatermark: false,
@@ -696,6 +750,7 @@ export default function RenderPresetsPage() {
                                                 { value: "None", label: "Yok (Sabit)" },
                                                 { value: "PopUp", label: "Pop Up" },
                                                 { value: "Typewriter", label: "Typewriter" },
+                                                { value: "FadeIn", label: "Fade In" },
                                                 { value: "SlideUp", label: "Slide Up" },
                                                 { value: "WordByWord", label: "Word by Word" },
                                             ]}
@@ -821,6 +876,31 @@ export default function RenderPresetsPage() {
                               ))}
                           </div>
 
+                          <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-950/30 p-3">
+                              <Toggle
+                                label="SFX Cue Kullan"
+                                description="EditPlan audio cue uretirse timeline'a SFX event'i ekle."
+                                checked={form.audioMixSettings.enableSfx ?? true}
+                                onChange={v => setForm({...form, audioMixSettings: {...form.audioMixSettings, enableSfx: v}})}
+                              />
+                              <Toggle
+                                label="Sentetik SFX Fallback"
+                                description="Kutuphanede dosya bulunamazsa ffmpeg ile kisa sentetik hit/whoosh/boom uret."
+                                checked={form.audioMixSettings.useSyntheticSfxFallback ?? true}
+                                onChange={v => setForm({...form, audioMixSettings: {...form.audioMixSettings, useSyntheticSfxFallback: v}})}
+                              />
+                              <div>
+                                <HelpLabel className="text-[10px] mb-1" help="Opsiyonel. Boş bırakılırsa ALL_FILES/Assets/sfx, audio ve music klasörleri taranır. Örnek: D:\\Assets\\sfx">
+                                  SFX Kütüphane Yolu
+                                </HelpLabel>
+                                <Input
+                                  value={form.audioMixSettings.sfxLibraryPath ?? ""}
+                                  onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, sfxLibraryPath: e.target.value}})}
+                                  placeholder="Opsiyonel klasör yolu"
+                                />
+                              </div>
+                          </div>
+
                           <div className="grid grid-cols-1 gap-2 border-t border-zinc-800 pt-4">
                               <Toggle
                                 label="Audio Ducking"
@@ -856,8 +936,111 @@ export default function RenderPresetsPage() {
                                 onChange={v => setForm({...form, audioMixSettings: {...form.audioMixSettings, fadeAudioInOut: v}})}
                               />
                            </div>
+
+                           <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950/30 p-3">
+                              <Toggle
+                                label="Voice Loudness Normalize"
+                                description="Konusma sesini YouTube icin daha stabil loudness hedefine yaklastir."
+                                checked={form.audioMixSettings.enableVoiceLoudnessNormalization ?? true}
+                                onChange={v => setForm({...form, audioMixSettings: {...form.audioMixSettings, enableVoiceLoudnessNormalization: v}})}
+                              />
+
+                              {(form.audioMixSettings.enableVoiceLoudnessNormalization ?? true) && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <div>
+                                    <HelpLabel className="text-[10px] mb-1" help="Integrated loudness hedefi. YouTube anlatim videolari icin -16 LUFS iyi baslangic.">
+                                      Target I ({Number(form.audioMixSettings.voiceLoudnessTargetI ?? -16).toFixed(1)})
+                                    </HelpLabel>
+                                    <input type="range" min="-22" max="-12" step="0.5" value={form.audioMixSettings.voiceLoudnessTargetI ?? -16} onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, voiceLoudnessTargetI: parseFloat(e.target.value)}})} className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500" />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px] mb-1" help="True peak tavani. -1.5 dB genelde guvenli.">
+                                      True Peak ({Number(form.audioMixSettings.voiceLoudnessTargetTp ?? -1.5).toFixed(1)})
+                                    </HelpLabel>
+                                    <input type="range" min="-4" max="-0.5" step="0.1" value={form.audioMixSettings.voiceLoudnessTargetTp ?? -1.5} onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, voiceLoudnessTargetTp: parseFloat(e.target.value)}})} className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500" />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px] mb-1" help="Loudness range. Dusuk deger daha stabil, yuksek deger daha dinamik his verir.">
+                                      LRA ({Number(form.audioMixSettings.voiceLoudnessRange ?? 11).toFixed(0)})
+                                    </HelpLabel>
+                                    <input type="range" min="5" max="16" step="1" value={form.audioMixSettings.voiceLoudnessRange ?? 11} onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, voiceLoudnessRange: parseFloat(e.target.value)}})} className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500" />
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-zinc-800 pt-3">
+                                <div>
+                                  <HelpLabel className="text-[10px] mb-1" help="Ducking kompresyon orani. Long-form icin 3-5 daha yumusak sonuc verir.">
+                                    Ducking Ratio ({Number(form.audioMixSettings.duckingRatio ?? 5).toFixed(1)})
+                                  </HelpLabel>
+                                  <input type="range" min="1" max="12" step="0.5" value={form.audioMixSettings.duckingRatio ?? 5} onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, duckingRatio: parseFloat(e.target.value)}})} className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500" />
+                                </div>
+                                <div>
+                                  <HelpLabel className="text-[10px] mb-1" help="Muzik ne kadar hizli geri gelsin. Uzun videoda 400-650 ms daha dogal duyulur.">
+                                    Duck Release ({form.audioMixSettings.duckingReleaseMs ?? 420} ms)
+                                  </HelpLabel>
+                                  <input type="range" min="100" max="1200" step="20" value={form.audioMixSettings.duckingReleaseMs ?? 420} onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, duckingReleaseMs: parseInt(e.target.value)}})} className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500" />
+                                </div>
+                                <div>
+                                  <HelpLabel className="text-[10px] mb-1" help="AAC final audio bitrate. 192 kbps uzun YouTube videolari icin iyi varsayilan.">
+                                    Final Audio Bitrate ({form.audioMixSettings.finalAudioBitrateKbps ?? 192}k)
+                                  </HelpLabel>
+                                  <input type="range" min="96" max="320" step="16" value={form.audioMixSettings.finalAudioBitrateKbps ?? 192} onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, finalAudioBitrateKbps: parseInt(e.target.value)}})} className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500" />
+                                </div>
+                                <Toggle
+                                  label="Render Sonrasi Audio QA"
+                                  description="Render bitince peak, ortalama ses ve sessizlik analizi logla."
+                                  checked={form.audioMixSettings.enableFinalAudioQa ?? true}
+                                  onChange={v => setForm({...form, audioMixSettings: {...form.audioMixSettings, enableFinalAudioQa: v}})}
+                                />
+                              </div>
+                           </div>
                       </div>
                   )}
+
+                           {activeTab === "audio" && (
+                              <div className="grid grid-cols-1 gap-3 border-t border-zinc-800 pt-4">
+                                <Toggle
+                                  label="Editor Audio Cuts"
+                                  description="EditPlan aktifken uygun sahnelerde kucuk J-cut / L-cut ses ofsetleri uygula."
+                                  checked={form.audioMixSettings.enableEditorAudioCuts ?? true}
+                                  onChange={v => setForm({...form, audioMixSettings: {...form.audioMixSettings, enableEditorAudioCuts: v}})}
+                                />
+
+                                {(form.audioMixSettings.enableEditorAudioCuts ?? true) && (
+                                    <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950/30 p-3">
+                                        <div>
+                                            <HelpLabel className="text-[10px] mb-1" help="Voice track'in sahne sinirindan en fazla kac saniye erken/gec baslayabilecegini belirler. Long-form icin 0.16-0.24 sn dogal araliktir.">
+                                              Maksimum J/L Ofseti ({Number(form.audioMixSettings.maxEditorAudioOffsetSec ?? 0.22).toFixed(2)} sn)
+                                            </HelpLabel>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="0.4"
+                                                step="0.02"
+                                                value={form.audioMixSettings.maxEditorAudioOffsetSec ?? 0.22}
+                                                onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, maxEditorAudioOffsetSec: parseFloat(e.target.value)}})}
+                                                className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <HelpLabel className="text-[10px] mb-1" help="Ses ofseti uygulanirken pat diye baslamasin diye voice icin cok kisa giris fade'i ekler. Cok yuksek degerler kelime baslarini yutabilir.">
+                                              Voice Micro Fade ({Number(form.audioMixSettings.voiceMicroFadeSec ?? 0.04).toFixed(2)} sn)
+                                            </HelpLabel>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="0.12"
+                                                step="0.01"
+                                                value={form.audioMixSettings.voiceMicroFadeSec ?? 0.04}
+                                                onChange={e => setForm({...form, audioMixSettings: {...form.audioMixSettings, voiceMicroFadeSec: parseFloat(e.target.value)}})}
+                                                className="w-full h-1.5 bg-zinc-800 rounded-lg accent-indigo-500"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                              </div>
+                           )}
 
                   {/* -------------------- VISUAL TAB -------------------- */}
                   {activeTab === "visual" && (
@@ -886,6 +1069,76 @@ export default function RenderPresetsPage() {
                                       </div>
                                       <div className="text-center text-xs font-mono mt-1 text-indigo-400">x{form.visualEffectsSettings.zoomIntensity}</div>
                                  </div>
+                             )}
+
+                            <Toggle
+                                label="AI + STT Editorial Timing"
+                                description="AI edit kararlarini STT kelime zamanina yakinlastirir; minimum hold ve cut ritmini kod tarafinda garanti eder."
+                                checked={form.visualEffectsSettings.enableEditorialTiming ?? true}
+                                onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, enableEditorialTiming: v}})}
+                            />
+
+                            {(form.visualEffectsSettings.enableEditorialTiming ?? true) && (
+                              <div className="space-y-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.04] p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div>
+                                    <div className="text-xs font-semibold text-zinc-200">Kurgu ritmi sinirlari</div>
+                                    <div className="mt-0.5 text-[10px] text-zinc-500">AI ne zaman ve neden cut istedigini soyler; bu degerler sonucu izlenebilir tutar.</div>
+                                  </div>
+                                  <Badge variant="neutral" className="border-indigo-500/20 bg-indigo-500/10 text-[10px] text-indigo-200">Long-form guvenli</Badge>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="Ilk 10-20 saniyedeki hizli hook cut'larinin ekranda kalacagi minimum sure. 1.1-1.5 sn genelde dogal durur.">
+                                      Hook min hold
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.hookMinVisualHoldSec ?? 1.25} min={0.5} max={4} step={0.05} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, hookMinVisualHoldSec: v}})} />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="Aciklayici govde sahnelerinde normal bir gorselin minimum ekranda kalma suresi. 1.8-2.4 sn rahat okunur.">
+                                      Govde min hold
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.bodyMinVisualHoldSec ?? 1.8} min={0.5} max={8} step={0.05} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, bodyMinVisualHoldSec: v}})} />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="Reveal, reaction ve vurgu insert'lerinde izin verilen daha kisa minimum sure. 1 sn altina inmek genelde goz yorucu olur.">
+                                      Vurgu min hold
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.emphasisMinVisualHoldSec ?? 1.1} min={0.4} max={5} step={0.05} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, emphasisMinVisualHoldSec: v}})} />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="Bir gorselin ekranda yeni bir anlam veya hareket olmadan kalabilecegi hedef ust sinir. Asil cozum ayni resmi bolmek degil yeni visual beat uretmektir.">
+                                      Maksimum hold
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.maxVisualHoldSec ?? 7} min={2} max={20} step={0.25} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, maxVisualHoldSec: v}})} />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="AI anchor'inin planlanan cut konumundan kac saniye uzaktaki STT kelimesine snap edebilecegi. Buyuk deger cut'lari cumle sonuna yigabilir.">
+                                      Anchor snap penceresi
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.anchorSnapWindowSec ?? 0.9} min={0.2} max={3} step={0.05} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, anchorSnapWindowSec: v}})} />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="STT phrase eslesmesinin kabul edilmesi icin gereken minimum guven. Dusuk deger yanlis kelimeye cut riskini artirir.">
+                                      Anchor guveni
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.anchorMinConfidence ?? 0.58} min={0.35} max={0.95} step={0.01} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, anchorMinConfidence: v}})} />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="Bu sureden kisa hold'lar fast cut kabul edilir. Review sistemi arka arkaya yigilmayi bu esige gore bulur.">
+                                      Fast cut esigi
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.fastCutThresholdSec ?? 1.6} min={0.6} max={4} step={0.05} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, fastCutThresholdSec: v}})} />
+                                  </div>
+                                  <div>
+                                    <HelpLabel className="text-[10px]" help="Arka arkaya izin verilen fast cut sayisi. Hook disinda 2 degeri insan gozu icin dengeli bir varsayilandir.">
+                                      Ard arda fast cut
+                                    </HelpLabel>
+                                    <NumberInput value={form.visualEffectsSettings.maxConsecutiveFastCuts ?? 2} min={1} max={6} step={1} onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, maxConsecutiveFastCuts: v}})} />
+                                  </div>
+                                </div>
+                              </div>
                             )}
 
                             <Toggle
@@ -938,6 +1191,29 @@ export default function RenderPresetsPage() {
                                 </div>
                               </div>
                             )}
+
+                            <Toggle
+                                label="Render Overlay Text"
+                                description="Storyboard/EditPlan tarafindan gelen kisa vurgu metinlerini final videonun uzerine FFmpeg ile basar. Kapaliysa yazilar yalnizca gorselin icinde uretildiyse gorunur."
+                                checked={form.visualEffectsSettings.enableOverlayText ?? false}
+                                onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, enableOverlayText: v}})}
+                            />
+
+                            <div className="rounded-xl border border-zinc-800 bg-zinc-950/30 p-3">
+                              <HelpLabel help="Final kelimeden sonra son gorseli kisa sure tutar. 1.5-2 sn long-form videoda bitisin bicak gibi kesilmesini engeller.">
+                                Outro Nefes Payi
+                              </HelpLabel>
+                              <div className="flex items-center gap-3">
+                                <NumberInput
+                                  value={form.visualEffectsSettings.outroHoldSec ?? 0}
+                                  min={0}
+                                  max={5}
+                                  step={0.1}
+                                  onChange={v => setForm({...form, visualEffectsSettings: {...form.visualEffectsSettings, outroHoldSec: v}})}
+                                />
+                                <span className="text-xs text-zinc-500">sn son kare hold</span>
+                              </div>
+                            </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

@@ -34,7 +34,13 @@ import {
   Linkedin,
   Twitter,
   AlertTriangle,
+  ShieldCheck,
+  Copy,
 } from "lucide-react";
+
+const YOUTUBE_OAUTH_REDIRECT_URI =
+  import.meta.env.VITE_YOUTUBE_OAUTH_REDIRECT_URI ||
+  "http://localhost:5173/oauth/youtube/callback";
 
 // Varsayılan Form
 const EMPTY_FORM: SaveSocialChannelDto = {
@@ -47,12 +53,92 @@ const EMPTY_FORM: SaveSocialChannelDto = {
   scopes: "",
 };
 
+const readPendingYoutubeTokenJson = () => {
+  try {
+    const tokenJson = localStorage.getItem("yt_token_json");
+    if (tokenJson?.trim()) return tokenJson;
+
+    const refreshToken = localStorage.getItem("yt_refresh_token");
+    const accessToken = localStorage.getItem("yt_access_token");
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+    if (!refreshToken && !accessToken) return "";
+
+    return JSON.stringify(
+      {
+        access_token: accessToken || undefined,
+        refresh_token: refreshToken || undefined,
+        client_id: clientId || undefined,
+      },
+      null,
+      2
+    );
+  } catch {
+    return "";
+  }
+};
+
+const clearPendingYoutubeTokenJson = () => {
+  try {
+    localStorage.removeItem("yt_token_json");
+    localStorage.removeItem("yt_refresh_token");
+    localStorage.removeItem("yt_access_token");
+  } catch {
+    // noop
+  }
+};
+
+const readCredentialString = (source: any, keys: string[]) => {
+  if (!source || typeof source !== "object") return "";
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+};
+
+const validateYoutubeTokenJson = (raw: string, allowMergeWithSavedToken = false) => {
+  try {
+    const root = JSON.parse(raw);
+    if (!root || typeof root !== "object" || Array.isArray(root)) {
+      return "YouTube token JSON kok degeri object olmali.";
+    }
+
+    const oauthClient =
+      root.installed && typeof root.installed === "object"
+        ? root.installed
+        : root.web && typeof root.web === "object"
+          ? root.web
+          : root;
+
+    const refreshToken =
+      readCredentialString(root, ["refresh_token", "refreshToken", "RefreshToken"]) ||
+      readCredentialString(oauthClient, ["refresh_token", "refreshToken", "RefreshToken"]);
+    const clientId =
+      readCredentialString(root, ["client_id", "clientId", "ClientId"]) ||
+      readCredentialString(oauthClient, ["client_id", "clientId", "ClientId"]);
+    const clientSecret =
+      readCredentialString(root, ["client_secret", "clientSecret", "ClientSecret"]) ||
+      readCredentialString(oauthClient, ["client_secret", "clientSecret", "ClientSecret"]);
+
+    if (!allowMergeWithSavedToken && !refreshToken) return "YouTube upload icin refresh_token zorunlu.";
+    if (!allowMergeWithSavedToken && !clientId) return "YouTube upload icin client_id zorunlu.";
+    if (!clientSecret) return "YouTube upload icin client_secret zorunlu.";
+    return "";
+  } catch (err: any) {
+    return `Token JSON gecersiz: ${err?.message || "parse edilemedi"}`;
+  }
+};
+
 export default function SocialChannelsPage() {
   // State
   const [items, setItems] = useState<SocialChannelListDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedHasTokens, setSelectedHasTokens] = useState(false);
+  const [selectedHasRequiredScopes, setSelectedHasRequiredScopes] = useState(false);
+  const [selectedRequiresReauthorization, setSelectedRequiresReauthorization] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [form, setForm] = useState<SaveSocialChannelDto>(EMPTY_FORM);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -73,6 +159,17 @@ export default function SocialChannelsPage() {
     loadList();
   }, []);
 
+  useEffect(() => {
+    const pendingTokenJson = readPendingYoutubeTokenJson();
+    if (!pendingTokenJson) return;
+
+    setForm((prev) => ({
+      ...prev,
+      channelType: 1,
+      rawTokensJson: prev.rawTokensJson || pendingTokenJson,
+    }));
+  }, []);
+
   const handleSelect = async (id: number) => {
     if (id === selectedId) return;
     setSelectedId(id);
@@ -82,6 +179,9 @@ export default function SocialChannelsPage() {
 
       // Platform Enum ID'sini bul (Backend string dönüyor "YouTube", biz ID'ye çeviriyoruz)
       const platformObj = PLATFORMS.find((p) => p.label === data.platform);
+      setSelectedHasTokens(Boolean(data.hasTokens));
+      setSelectedHasRequiredScopes(Boolean(data.hasRequiredScopes));
+      setSelectedRequiresReauthorization(Boolean(data.requiresReauthorization));
 
       setForm({
         channelType: platformObj ? platformObj.id : 1,
@@ -101,7 +201,48 @@ export default function SocialChannelsPage() {
 
   const handleNew = () => {
     setSelectedId(null);
-    setForm(EMPTY_FORM);
+    setSelectedHasTokens(false);
+    setSelectedHasRequiredScopes(false);
+    setSelectedRequiresReauthorization(false);
+    setForm({
+      ...EMPTY_FORM,
+      rawTokensJson: readPendingYoutubeTokenJson(),
+    });
+  };
+
+  useEffect(() => {
+    const connectedId = Number(sessionStorage.getItem("youtube_connected_channel_id") || 0);
+    if (!connectedId || !items.some((item) => item.id === connectedId)) return;
+
+    sessionStorage.removeItem("youtube_connected_channel_id");
+    void handleSelect(connectedId);
+    toast.success("YouTube upload yetkisi yenilendi.");
+    window.history.replaceState({}, "", "/social-channels");
+  }, [items]);
+
+  const handleYouTubeReconnect = async () => {
+    if (!selectedId) {
+      toast.error("Once YouTube kanal kaydini olusturun veya secin.");
+      return;
+    }
+
+    setOauthLoading(true);
+    try {
+      const result = await socialChannelsApi.startYouTubeOAuth(selectedId);
+      window.location.assign(result.authorizationUrl);
+    } catch (err: any) {
+      toast.error(err?.message || "YouTube yetkilendirmesi baslatilamadi.");
+      setOauthLoading(false);
+    }
+  };
+
+  const handleCopyYouTubeRedirectUri = async () => {
+    try {
+      await navigator.clipboard.writeText(YOUTUBE_OAUTH_REDIRECT_URI);
+      toast.success("Callback adresi kopyalandi.");
+    } catch {
+      toast.error("Callback adresi kopyalanamadi.");
+    }
   };
 
   const handleSave = async () => {
@@ -110,19 +251,39 @@ export default function SocialChannelsPage() {
       return;
     }
 
+    if (form.channelType === 1 && form.rawTokensJson?.trim()) {
+      const tokenError = validateYoutubeTokenJson(
+        form.rawTokensJson.trim(),
+        Boolean(selectedId && selectedHasTokens)
+      );
+      if (tokenError) {
+        toast.error(tokenError);
+        return;
+      }
+    }
+
     setDetailLoading(true);
     try {
+      const payload: SaveSocialChannelDto = {
+        ...form,
+        rawTokensJson: form.rawTokensJson?.trim() ? form.rawTokensJson.trim() : undefined,
+      };
+
       if (selectedId) {
-        await socialChannelsApi.update(selectedId, form);
+        await socialChannelsApi.update(selectedId, payload);
+        if (payload.rawTokensJson) clearPendingYoutubeTokenJson();
+        setSelectedHasTokens(selectedHasTokens || Boolean(payload.rawTokensJson));
+        setForm((prev) => ({ ...prev, rawTokensJson: "" }));
         toast.success("Güncellendi.");
       } else {
-        await socialChannelsApi.create(form);
+        await socialChannelsApi.create(payload);
         toast.success("Kanal eklendi.");
+        clearPendingYoutubeTokenJson();
         handleNew();
       }
       loadList();
     } catch (err: any) {
-      toast.error("Kaydedilemedi.");
+      toast.error(err?.message || "Kaydedilemedi.");
     } finally {
       setDetailLoading(false);
     }
@@ -357,9 +518,94 @@ export default function SocialChannelsPage() {
                       />
                     </div>
 
+                    {form.channelType === 1 && (
+                      <div
+                        className={`rounded-lg border p-3 ${
+                          selectedHasRequiredScopes && !selectedRequiresReauthorization
+                            ? "border-emerald-500/25 bg-emerald-500/5"
+                            : "border-amber-500/25 bg-amber-500/5"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-xs font-bold text-zinc-100">
+                              <ShieldCheck
+                                size={15}
+                                className={selectedHasRequiredScopes ? "text-emerald-400" : "text-amber-400"}
+                              />
+                              YouTube upload yetkisi
+                            </div>
+                            <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                              {selectedHasRequiredScopes && !selectedRequiresReauthorization
+                                ? "Kanal video yukleme scope'una sahip."
+                                : selectedId
+                                  ? "Video yukleme yetkisi eksik veya dogrulanmamis. Google onayini yenileyin."
+                                  : "Once kanal kaydini olusturun, sonra Google yetkisini baglayin."}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={selectedHasRequiredScopes && !selectedRequiresReauthorization ? "success" : "warning"}
+                            className="shrink-0 text-[10px]"
+                          >
+                            {selectedHasRequiredScopes && !selectedRequiresReauthorization ? "Hazir" : "Yetki gerekli"}
+                          </Badge>
+                        </div>
+                        {form.scopes && (
+                          <div className="mt-2 break-all rounded-md border border-white/5 bg-black/20 px-2 py-1.5 font-mono text-[9px] text-zinc-500">
+                            {form.scopes}
+                          </div>
+                        )}
+                        <div className="mt-2 rounded-md border border-white/5 bg-black/20 p-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[9px] font-semibold uppercase text-zinc-500">
+                              Google Authorized Redirect URI
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleCopyYouTubeRedirectUri}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                              title="Callback adresini kopyala"
+                            >
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                          <div className="mt-1 break-all font-mono text-[9px] text-zinc-400">
+                            {YOUTUBE_OAUTH_REDIRECT_URI}
+                          </div>
+                          <p className="mt-1 text-[9px] leading-relaxed text-zinc-600">
+                            Bu adres Google Cloud OAuth Client icinde birebir kayitli olmalidir.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleYouTubeReconnect}
+                          isLoading={oauthLoading}
+                          disabled={!selectedId || oauthLoading}
+                          className="mt-3 w-full"
+                        >
+                          <Youtube size={14} className="mr-2" />
+                          {selectedHasRequiredScopes ? "YouTube Yetkisini Yenile" : "YouTube'a Yetki Ver"}
+                        </Button>
+                      </div>
+                    )}
+
                     {/* 🔥 JSON Token Input */}
                     <div className="flex-1 flex flex-col">
-                      <Label className="mb-1.5">OAuth Tokens (JSON)</Label>
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <Label>OAuth Tokens (JSON)</Label>
+                        <Badge
+                          variant={form.rawTokensJson?.trim() || selectedHasTokens ? "success" : "warning"}
+                          className="text-[10px]"
+                        >
+                          {form.rawTokensJson?.trim()
+                            ? "Yeni JSON hazir"
+                            : selectedHasTokens
+                              ? "Token kayitli"
+                              : "Token yok"}
+                        </Badge>
+                      </div>
                       <div className="flex-1 flex flex-col min-h-0">
                         <JsonInput
                           value={form.rawTokensJson || ""}
@@ -369,10 +615,13 @@ export default function SocialChannelsPage() {
                           placeholder={
                             selectedId
                               ? "Tokenları güncellemek için yeni JSON yapıştırın..."
-                              : '{\n  "access_token": "...",\n  "refresh_token": "..."\n}'
+                              : '{\n  "access_token": "...",\n  "refresh_token": "...",\n  "client_id": "Google OAuth Client ID",\n  "client_secret": "Google OAuth Client Secret"\n}'
                           }
                           className="flex-1 min-h-[150px]"
                         />
+                        <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+                          Yeni hesapta refresh_token, client_id ve client_secret gerekir. Mevcut token kayitliyken sadece client_secret ya da Google OAuth client JSON'u yapistirirsan sistem eski token ile birlestirir.
+                        </p>
                       </div>
 
                     </div>

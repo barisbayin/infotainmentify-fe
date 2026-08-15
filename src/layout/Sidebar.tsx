@@ -3,6 +3,8 @@ import { NavLink } from "react-router-dom";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { cn } from "../components/ui-kit"; // veya senin path: "../components/ui-kit"
 import { MENU_CONFIG } from "../config/menu";
+import { NotificationCenter } from "../components/NotificationComponents";
+import { UserMenu } from "../components/UserMenu";
 
 type Props = {
   collapsed: boolean;
@@ -48,7 +50,7 @@ export default function Sidebar({
         {/* Header (Logo) */}
         <div
           className={cn(
-            "flex h-16 shrink-0 items-center border-b border-zinc-800 transition-all duration-300",
+            "flex h-14 shrink-0 items-center border-b border-zinc-800 transition-all duration-300",
             // 🔥 DÜZELTME 1: Kapalıyken padding'i px-2'ye düşür (px-4 çok fazla geliyor)
             collapsed ? "justify-center px-2 gap-2" : "justify-between px-4"
           )}
@@ -157,6 +159,7 @@ export default function Sidebar({
                     <NavLink
                       key={item.to}
                       to={item.to}
+                      onClick={() => setMobileOpen(false)}
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition-all duration-200",
@@ -188,6 +191,38 @@ export default function Sidebar({
           })}
         </nav>
 
+        <div
+          className={cn(
+            "shrink-0 border-t border-zinc-800 bg-zinc-950/95 p-3",
+            collapsed ? "space-y-3" : ""
+          )}
+        >
+          <div
+            className={cn(
+              "gap-2",
+              collapsed ? "flex flex-col items-center" : "grid grid-cols-[minmax(0,1fr)_40px_40px] items-center"
+            )}
+          >
+            <UserMenu compact={collapsed} footer={!collapsed} placement="top" align="left" />
+
+            <div
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/55",
+                !collapsed && "justify-self-stretch"
+              )}
+              title="Connected"
+            >
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+            </div>
+
+            <div className={cn("flex h-10 w-10 items-center justify-center", !collapsed && "justify-self-stretch")}>
+              <NotificationCenter compact placement="top" align={collapsed ? "left" : "right"} />
+            </div>
+          </div>
+        </div>
 
       </aside>
     </>

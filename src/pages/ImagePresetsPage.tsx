@@ -24,6 +24,7 @@ import {
   Select,
 } from "../components/ui-kit";
 import { HelpLabel } from "../components/FieldHelp";
+import { AdvancedSection, PromptPreviewPanel } from "../components/PromptPreviewPanel";
 import {
   Plus,
   Trash2,
@@ -61,14 +62,18 @@ const ASPECT_RATIOS = [
 
 const LONG_FORM_IMAGE_PROMPT = `{SceneDescription}
 
-Create a cinematic 16:9 YouTube long-form visual.
-Style: {ArtStyle}
+Create a 16:9 YouTube long-form visual.
+Concept visual style: {VisualStyle}
+Style bible: {StyleBible}
+Character continuity: {CharacterBible}
+Text policy: {TextPolicy}
+Provider style hint: {ArtStyle}
+
 Requirements:
-- landscape composition, documentary / infotainment style
-- clear subject, strong depth, natural lighting, realistic detail
-- no text, no subtitles, no logos, no watermark
-- suitable as a calm long-form video scene background
-- high detail, editorial framing, professional color grading`;
+- clear subject, readable composition, strong focal idea
+- keep visual variety while staying inside the concept identity
+- avoid random text, logos, watermark, UI, and unreadable labels
+- suitable for a deliberate long-form edit, not a generic stock image`;
 
 const LONG_FORM_NEGATIVE_PROMPT =
   "text, subtitles, captions, logo, watermark, low quality, blurry, deformed, distorted faces, extra fingers, cropped subject, vertical composition";
@@ -91,6 +96,9 @@ export default function ImagePresetsPage() {
     title: string;
     content: string;
   } | null>(null);
+  const effectivePromptTemplate =
+    form.promptTemplate.trim() || LONG_FORM_IMAGE_PROMPT;
+  const isUsingDefaultImagePrompt = !form.promptTemplate.trim();
 
   const loadData = async () => {
     setLoading(true);
@@ -162,8 +170,8 @@ export default function ImagePresetsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.promptTemplate.trim()) {
-      toast.error("Ad ve Prompt Şablonu zorunludur.");
+    if (!form.name.trim()) {
+      toast.error("Preset adi zorunludur.");
       return;
     }
     if (!form.userAiConnectionId) {
@@ -463,18 +471,53 @@ export default function ImagePresetsPage() {
                     </div>
                   </div>
 
+                  <PromptPreviewPanel
+                    title="Konsept uyumlu gorsel prompt preview"
+                    description="Alan bos kalirsa sistem sahne + storyboard + Concept Studio kimligini standart long-form gorsel prompt'uyla birlestirir."
+                    promptTemplate={effectivePromptTemplate}
+                    replacements={{
+                      SceneDescription:
+                        "Scene 12: a funny whiteboard-style visual about a confused character discovering the hidden cause of the problem.",
+                      ArtStyle: form.artStyle || "provider style hint",
+                      VisualStyle: "Whiteboardly stick figure doodles",
+                      StyleBible:
+                        "Minimal black-and-white hand-drawn doodle, thick uneven marker lines, simple expressive stick figures, clean white background.",
+                      CharacterBible:
+                        "Round head stick figures, expressive eyes, consistent simple proportions, readable body language.",
+                      TextPolicy:
+                        "Use readable handwritten text only when the scene explicitly asks for a short phrase.",
+                      ContentRules:
+                        "Educational, funny, clear, avoid clutter and generic stock visuals.",
+                    }}
+                    contextItems={[
+                      { label: "Size", value: form.size },
+                      { label: "Quality", value: form.quality },
+                      { label: "Model", value: form.modelName },
+                      { label: "Images per scene", value: form.imageCountPerScene },
+                    ]}
+                  />
+
+                  <AdvancedSection
+                    title="Gelismis gorsel prompt override"
+                    description="Normalde Concept Studio style bible ve sahne aciklamasi yeterli. Sadece provider'a ozel davranis istediginde doldur."
+                  >
+                  {isUsingDefaultImagePrompt && (
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      Bos prompt alani backend long-form gorsel varsayilaniyla calisir. Konseptteki stil, karakter ve text policy otomatik uygulanir.
+                    </div>
+                  )}
+
                   {/* Prompt Template (Flex-1) */}
                   <div className="flex flex-col flex-1 min-h-[200px]">
                     <div className="flex justify-between items-center mb-1.5">
-                      <HelpLabel help="Script sahnesinden gelen {SceneDescription} ve stil bilgisiyle final image prompt'u olusur. Text/logo istememek render kalitesini artirir.">
-                        Görsel Prompt Şablonu{" "}
-                        <span className="text-indigo-400">*</span>
+                      <HelpLabel help="Opsiyonel. Bos birakirsan sistem {SceneDescription}, storyboard beat'i ve konsept stil rehberini kullanarak prompt olusturur.">
+                        Gorsel Prompt Sablonu (opsiyonel)
                       </HelpLabel>
                       <button
                         onClick={() =>
                           setPreviewModal({
-                            title: "Prompt Şablonu",
-                            content: form.promptTemplate,
+                            title: "Prompt Sablonu",
+                            content: effectivePromptTemplate,
                           })
                         }
                         className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -488,7 +531,7 @@ export default function ImagePresetsPage() {
                       onChange={(e) =>
                         setForm({ ...form, promptTemplate: e.target.value })
                       }
-                      placeholder="Örn: {SceneDescription}, {ArtStyle}, highly detailed, 8k..."
+                      placeholder="Bos birak: backend konsept uyumlu long-form gorsel prompt'unu kullansin."
                     />
                   </div>
 
@@ -506,6 +549,7 @@ export default function ImagePresetsPage() {
                       placeholder="Örn: ugly, deformed, watermark, text..."
                     />
                   </div>
+                  </AdvancedSection>
                 </>
               )}
             </div>

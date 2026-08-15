@@ -1,47 +1,75 @@
-import { Search, Menu } from "lucide-react";
-import { NotificationCenter } from "../components/NotificationComponents";
-import { UserMenu } from "../components/UserMenu";
-// import { cn } from "../components/ui-kit";
+import { Menu, X } from "lucide-react";
+import { cn } from "../components/ui-kit";
 
-export default function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
+type WorkspaceTab = {
+  path: string;
+  label: string;
+};
+
+export default function Topbar({
+  onOpenMobile,
+  tabs,
+  activePath,
+  onSelectTab,
+  onCloseTab,
+}: {
+  onOpenMobile: () => void;
+  tabs: WorkspaceTab[];
+  activePath: string;
+  onSelectTab: (path: string) => void;
+  onCloseTab: (path: string) => void;
+}) {
   return (
-    <div className="flex w-full items-center justify-between px-6">
-      {/* Sol: Mobile Trigger */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onOpenMobile}
-          className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white lg:hidden transition-colors"
-        >
-          <Menu size={24} />
-        </button>
+    <div className="flex w-full min-w-0 items-center gap-3 px-3">
+      <button
+        onClick={onOpenMobile}
+        className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white lg:hidden"
+        title="Menu"
+      >
+        <Menu size={22} />
+      </button>
 
-        {/* Search Bar */}
-        <div className="relative hidden md:block group">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
-          <input
-            className="h-10 w-72 rounded-xl border border-zinc-800 bg-zinc-900/50 pl-10 pr-4 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/50 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-            placeholder="Ara (Topic, Script...)"
-          />
-        </div>
-      </div>
-
-      {/* Sağ: Actions */}
-      <div className="flex items-center gap-4">
-        {/* SignalR Status (Yeşil nokta) */}
-        <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span className="text-xs font-medium text-zinc-400">Connected</span>
-        </div>
-
-        {/* Notifications */}
-        {/* Notifications */}
-        <NotificationCenter />
-        
-        {/* User Menu */}
-        <UserMenu />
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-800">
+        {tabs.map((tab) => {
+          const active = tab.path === activePath;
+          return (
+            <button
+              key={tab.path}
+              type="button"
+              onClick={() => onSelectTab(tab.path)}
+              className={cn(
+                "group inline-flex h-9 max-w-[240px] shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition",
+                active
+                  ? "border-indigo-500/40 bg-indigo-500/15 text-white shadow-lg shadow-indigo-950/30"
+                  : "border-transparent bg-transparent text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-100"
+              )}
+              title={tab.label}
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 shrink-0 rounded-full",
+                  active ? "bg-indigo-300" : "bg-zinc-700 group-hover:bg-zinc-500"
+                )}
+              />
+              <span className="truncate">{tab.label}</span>
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCloseTab(tab.path);
+                }}
+                className={cn(
+                  "ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-700 hover:text-white",
+                  tabs.length <= 1 && "pointer-events-none opacity-30"
+                )}
+                title="Sekmeyi kapat"
+              >
+                <X size={12} />
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -13,12 +13,15 @@ export function FieldHelp({
 
   return (
     <Tooltip
-      content={<span className="block max-w-[260px] whitespace-normal leading-relaxed">{text}</span>}
-      className="max-w-[280px] whitespace-normal text-left"
+      content={<span className="block max-w-[300px] whitespace-normal leading-relaxed">{text}</span>}
+      className="max-w-[320px] whitespace-normal text-left"
     >
       <HelpCircle
-        size={13}
-        className={cn("cursor-help text-zinc-500 hover:text-indigo-300", className)}
+        size={14}
+        className={cn(
+          "cursor-help rounded-full text-zinc-500 transition-colors hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
+          className
+        )}
       />
     </Tooltip>
   );

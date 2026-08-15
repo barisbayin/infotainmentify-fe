@@ -1,11 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth"; 
 import { User, LogOut, KeyRound, ChevronDown, Settings, Save } from "lucide-react";
-import { Modal, Input, Button, Label } from "./ui-kit";
+import { Modal, Input, Button, Label, cn } from "./ui-kit";
 import { changeMyPassword } from "../api/users";
 import toast from "react-hot-toast";
 
-export function UserMenu() {
+export function UserMenu({
+  compact = false,
+  footer = false,
+  placement = "bottom",
+  align = "right",
+}: {
+  compact?: boolean;
+  footer?: boolean;
+  placement?: "top" | "bottom";
+  align?: "left" | "right";
+} = {}) {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -69,25 +79,39 @@ export function UserMenu() {
 
   return (
     <>
-      <div className="relative" ref={ref}>
+      <div className={cn("relative", footer && !compact && "min-w-0")} ref={ref}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 p-1.5 pr-3 rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors group"
+          className={cn(
+            "flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors group",
+            compact
+              ? "h-10 w-10 justify-center p-0"
+              : footer
+                ? "h-10 w-full min-w-0 justify-start rounded-xl px-2"
+                : "p-1.5 pr-3"
+          )}
+          title={user?.username || "Kullanici"}
         >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
-            <User size={16} />
+          <div className={cn("rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white", compact || footer ? "h-8 w-8" : "w-8 h-8")}>
+            <User size={compact ? 15 : 16} />
           </div>
-          <div className="flex flex-col items-start hidden sm:flex">
-            <span className="text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors">
+          <div className={cn("min-w-0 flex-col items-start hidden sm:flex", compact && "sm:hidden")}>
+            <span className="truncate text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors">
               {user?.username || "Kullanıcı"}
             </span>
-            <span className="text-[10px] text-zinc-500">Yönetici</span>
+            {!footer && <span className="text-[10px] text-zinc-500">Yönetici</span>}
           </div>
-          <ChevronDown size={14} className="text-zinc-500 group-hover:text-zinc-300 ml-1" />
+          {!compact && !footer && <ChevronDown size={14} className="text-zinc-500 group-hover:text-zinc-300 ml-1" />}
         </button>
 
         {isOpen && (
-          <div className="absolute top-full right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 p-1">
+          <div
+            className={cn(
+              "absolute z-50 w-56 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-1 shadow-2xl",
+              placement === "top" ? "bottom-full mb-2 animate-in fade-in slide-in-from-bottom-2" : "top-full mt-2 animate-in fade-in slide-in-from-top-2",
+              align === "left" ? "left-0" : "right-0"
+            )}
+          >
             <div className="px-3 py-2 border-b border-zinc-800/50 mb-1">
               <p className="text-xs font-medium text-white truncate">{user?.username}</p>
               <p className="text-[10px] text-zinc-500 truncate">{user?.email || "admin@infotainmentify.com"}</p>

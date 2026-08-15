@@ -1,0 +1,1 @@
+import{h as t}from"./index-DK2vGQ9s.js";const s={list(){return t("/api/video-presets")},get(e){return t(`/api/video-presets/${e}`)},create(e){return t("/api/video-presets",{method:"POST",body:JSON.stringify(e)})},update(e,r){return t(`/api/video-presets/${e}`,{method:"PUT",body:JSON.stringify(r)})},delete(e){return t(`/api/video-presets/${e}`,{method:"DELETE"})}};export{s as v};

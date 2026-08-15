@@ -49,7 +49,16 @@ export async function http<T = unknown>(input: RequestInfo, init?: HttpOptions):
         const token = getAuthToken();
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch(url, { cache: "no-store", ...init, headers, signal: controller.signal });
+        let res: Response;
+        try {
+            res = await fetch(url, { cache: "no-store", ...init, headers, signal: controller.signal });
+        } catch (err: any) {
+            const message = String(err?.message || "").toLowerCase();
+            if (err?.name === "AbortError" || message.includes("aborted") || message.includes("abort")) {
+                throw new HttpError("Istek zaman asimina ugradi.", 408, err);
+            }
+            throw err;
+        }
 
         if (res.status === 401) {
             window.dispatchEvent(new CustomEvent("auth:unauthorized"));

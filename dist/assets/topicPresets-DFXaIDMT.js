@@ -1,1 +1,0 @@
-import{h as e}from"./index-BDG7les7.js";const i={list(){return e("/api/topic-presets")},get(t){return e(`/api/topic-presets/${t}`)},create(t){return e("/api/topic-presets",{method:"POST",body:JSON.stringify(t)})},update(t,r){return e(`/api/topic-presets/${t}`,{method:"PUT",body:JSON.stringify(r)})},delete(t){return e(`/api/topic-presets/${t}`,{method:"DELETE"})}};export{i as t};

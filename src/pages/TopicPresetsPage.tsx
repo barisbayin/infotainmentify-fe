@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
 import {
   topicPresetsApi,
   type TopicPresetListDto,
   type SaveTopicPresetDto,
 } from "../api/topicPresets";
-import { aiConnectionsApi } from "../api/aiConnections"; // Dropdown için
+import { aiConnectionsApi } from "../api/aiConnections"; // Dropdown icin
 import toast from "react-hot-toast";
 import {
   Page,
@@ -26,6 +26,8 @@ import {
   JsonInput,
 } from "../components/ui-kit";
 import { HelpLabel } from "../components/FieldHelp";
+import { PromptContractGuard } from "../components/PromptContractGuard";
+import { AdvancedSection, PromptPreviewPanel } from "../components/PromptPreviewPanel";
 import {
   Plus,
   Trash2,
@@ -36,6 +38,7 @@ import {
   Maximize2,
   Copy,
   Cpu,
+  Wand2,
 } from "lucide-react";
 
 const EMPTY_FORM: SaveTopicPresetDto = {
@@ -50,12 +53,40 @@ const EMPTY_FORM: SaveTopicPresetDto = {
   contextKeywordsJson: "",
 };
 
+const LONG_FORM_TOPIC_SYSTEM = `You are a senior YouTube long-form topic strategist for educational infotainment videos.
+You turn a production brief into one focused production-ready topic document.
+Do not produce a random idea list.
+Prioritize a clear audience promise, a central question, a strong angle, chapter potential, visual direction, and avoid notes.
+Follow the backend-provided JSON contract exactly.`;
+
+const LONG_FORM_TOPIC_PROMPT = `Turn this production brief into a structured long-form YouTube topic document.
+
+Main title: {MainTitle}
+Angle / thesis: {Angle}
+Target audience: {Audience}
+Target duration: {TargetDuration}
+Must cover: {MustCover}
+Avoid: {Avoid}
+Notes / sources: {Notes}
+
+Language: {Language}
+
+Creative direction:
+- Create one focused topic, not a list of topic ideas.
+- Treat the main title as the fixed production anchor.
+- Make the premise surprising, clickable, and easy to understand.
+- Make the central question strong enough to carry the whole video.
+- Give chapter hints that will help a scriptwriter build a long-form structure.
+- Include visual direction that can guide Storyboard and Image stages.
+- Preserve all avoid notes and source constraints.
+- If the brief is narrow, deepen the angle instead of changing the subject.`;
+
 export default function TopicPresetsPage() {
   // --- STATE ---
   const [items, setItems] = useState<TopicPresetListDto[]>([]);
   const [connections, setConnections] = useState<
     { label: string; value: string }[]
-  >([]); // Dropdown datası
+  >([]); // Dropdown datasi
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -75,7 +106,7 @@ export default function TopicPresetsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Paralel yükleme: Hem liste hem bağlantılar
+      // Paralel yukleme: Hem liste hem baglantilar
       const [presetsData, connectionsData] = await Promise.all([
         topicPresetsApi.list(),
         aiConnectionsApi.list(),
@@ -83,7 +114,7 @@ export default function TopicPresetsPage() {
 
       setItems(presetsData);
 
-      // Bağlantıları Select formatına çevir
+      // Baglantilari Select formatina cevir
       setConnections(
         connectionsData.map((c) => ({
           label: `${c.name} (${c.provider})`,
@@ -131,9 +162,27 @@ export default function TopicPresetsPage() {
     setForm(EMPTY_FORM);
   };
 
+  const applyLongFormStarter = () => {
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || "Long Form Topic - Brief Driven",
+      description: prev.description || "Brief'i production-ready long-form topic document'a cevirir.",
+      modelName: prev.modelName || "gpt-4o",
+      temperature: 0.65,
+      language: prev.language || "en-US",
+      systemInstruction: LONG_FORM_TOPIC_SYSTEM,
+      promptTemplate: LONG_FORM_TOPIC_PROMPT,
+    }));
+    toast.success("Long Form topic starter uygulandi.");
+  };
+
+  const effectiveSystemInstruction = (form.systemInstruction ?? "").trim() || LONG_FORM_TOPIC_SYSTEM;
+  const effectivePromptTemplate = form.promptTemplate.trim() || LONG_FORM_TOPIC_PROMPT;
+  const isUsingDefaultTopicPrompt = !(form.systemInstruction ?? "").trim() || !form.promptTemplate.trim();
+
   const handleSave = async () => {
-    if (!form.name.trim() || !form.promptTemplate.trim()) {
-      toast.error("Ad ve Prompt Şablonu zorunludur.");
+    if (!form.name.trim()) {
+      toast.error("Preset adı zorunludur.");
       return;
     }
     if (!form.userAiConnectionId) {
@@ -183,7 +232,7 @@ export default function TopicPresetsPage() {
     toast.success("Kopyalandı!");
   };
 
-  // Filtreleme (Client-side search çünkü backend endpoint'i şu an parametre almıyor olabilir, alıyorsa değiştiririz)
+  // Filtreleme (Client-side search cunku backend endpoint'i su an parametre almiyor olabilir, aliyorsa degistiririz)
   const filteredItems = items.filter((i) =>
     i.name.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
@@ -191,7 +240,7 @@ export default function TopicPresetsPage() {
   return (
     <Page>
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden pt-2">
-        {/* SOL: LİSTE (8 BİRİM) */}
+        {/* SOL: LISTE (8 BIRIM) */}
         <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-0 gap-4">
           <div className="flex justify-between items-center gap-2 shrink-0">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
@@ -286,7 +335,7 @@ export default function TopicPresetsPage() {
           </Card>
         </div>
 
-        {/* === SAĞ: FORM (4 BİRİM) === */}
+        {/* === SAG: FORM (4 BIRIM) === */}
         <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-0">
           <Card className="h-full flex flex-col overflow-hidden border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-0">
             {/* Header */}
@@ -306,6 +355,19 @@ export default function TopicPresetsPage() {
                   #{selectedId}
                 </Badge>
               )}
+            </div>
+
+            <div className="shrink-0 border-b border-zinc-800/50 bg-zinc-950/30 px-4 py-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={applyLongFormStarter}
+                className="h-8 w-full justify-center text-xs"
+              >
+                <Wand2 size={13} className="mr-1.5" />
+                Long Form Starter Uygula
+              </Button>
             </div>
 
             {/* Form Body */}
@@ -403,17 +465,68 @@ export default function TopicPresetsPage() {
                     />
                   </div>
 
+                  <PromptPreviewPanel
+                    title="Konu üretim önizlemesi"
+                    description={
+                      isUsingDefaultTopicPrompt
+                        ? "Prompt alanları boşsa sistemin gömülü long-form konu şablonu kullanılır. Normal akışta konsept + brief yeterlidir."
+                        : "Örnek brief ve concept profile ile bu preset'in backend tarafında nasıl besleneceğini gösterir."
+                    }
+                    systemInstruction={effectiveSystemInstruction}
+                    promptTemplate={effectivePromptTemplate}
+                    replacements={{
+                      MainTitle: "Why Do We Procrastinate Even When We Know Better?",
+                      BriefTitle: "Why Do We Procrastinate Even When We Know Better?",
+                      Angle: "Procrastination is not laziness; it is emotion regulation with bad marketing.",
+                      Audience: "Curious YouTube viewers who enjoy funny but science-grounded explanations.",
+                      TargetDuration: "10-12 minutes",
+                      MustCover: "instant gratification, anxiety avoidance, dopamine, practical payoff",
+                      Avoid: "generic productivity guru advice",
+                      Notes: "Use clear examples and visual comedy potential.",
+                      Language: form.language,
+                      ModelName: form.modelName,
+                      ConceptProfile:
+                        "Whiteboardly long-form educational comedy profile with strict doodle visual identity.",
+                      ConceptName: "Whiteboardly",
+                      ChannelPromise: "Explain serious ideas with simple funny visual metaphors.",
+                      ConceptAudience: "Smart casual viewers who like science explained without stiffness.",
+                      ConceptTone: "Funny, educational, sarcastic, scientifically grounded",
+                      VisualStyle: "Simple black-and-white stick figure educational doodles",
+                      StyleBible: "Minimal black marker doodles, expressive stick figures, clean white background.",
+                      CharacterBible: "Recurring simple stick figure cast with exaggerated expressions.",
+                      TextPolicy: "Short handwritten phrases only when useful.",
+                      ContentRules: "Keep ideas surprising, clear, and evidence-aware.",
+                      DefaultDurationSec: 720,
+                    }}
+                    contextItems={[
+                      { label: "Model", value: form.modelName },
+                      { label: "Temp", value: form.temperature },
+                      { label: "Language", value: form.language },
+                      { label: "Preset note", value: form.description },
+                    ]}
+                  />
+
+                  <AdvancedSection
+                    title="Gelişmiş konu üretim şablonu"
+                    description="İsteğe bağlı override alanı. Boş bırakırsan sistem konsept + brief + gömülü topic contract ile üretir."
+                  >
+                    {isUsingDefaultTopicPrompt && (
+                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs leading-relaxed text-emerald-100">
+                        Prompt yazmana gerek yok. Boş kalan alanlarda sistemin long-form topic şablonu otomatik kullanılacak.
+                      </div>
+                    )}
+
                   {/* System Prompt */}
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
-                      <HelpLabel help="Topic ureticisinin rolunu, kalite kriterini ve konu secim disiplinini burada sabitle.">
-                        System Instruction (Rol)
+                      <HelpLabel help="Opsiyonel. Boş bırakırsan backend kendi long-form topic stratejist rolünü kullanır. Sadece model davranışını özel değiştirmek istediğinde doldur.">
+                        System Instruction (opsiyonel)
                       </HelpLabel>
                       <button
                         onClick={() =>
                           setPreviewModal({
                             title: "System Instruction",
-                            content: form.systemInstruction || "",
+                            content: effectiveSystemInstruction,
                           })
                         }
                         className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -427,21 +540,21 @@ export default function TopicPresetsPage() {
                       onChange={(e) =>
                         setForm({ ...form, systemInstruction: e.target.value })
                       }
+                      placeholder="Boş bırakabilirsin; sistem varsayılan topic rolünü kullanır."
                     />
                   </div>
 
                   {/* Prompt Template (Flex-1) */}
                   <div className="flex flex-col flex-1 min-h-[200px]">
                     <div className="flex justify-between items-center mb-1.5">
-                      <HelpLabel help="Konu/premise ciktisini olusturan ana prompt. Long-form icin tek fikir degil; aci, vaat, bolum potansiyeli ve kaynak/kanit ihtiyaci da iste.">
-                        Prompt Şablonu{" "}
-                        <span className="text-indigo-400">*</span>
+                      <HelpLabel help="Opsiyonel override. Normal üretimde brief + Concept Studio yeterli; boş bırakıldığında backend gömülü long-form topic şablonunu kullanır.">
+                        Prompt Şablonu (opsiyonel)
                       </HelpLabel>
                       <button
                         onClick={() =>
                           setPreviewModal({
                             title: "Prompt Şablonu",
-                            content: form.promptTemplate,
+                            content: effectivePromptTemplate,
                           })
                         }
                         className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -455,9 +568,15 @@ export default function TopicPresetsPage() {
                       onChange={(e) =>
                         setForm({ ...form, promptTemplate: e.target.value })
                       }
-                      placeholder="Örn: Create a story about {Category}..."
+                      placeholder="Boş bırakabilirsin; sistem varsayılan topic şablonunu kullanır."
                     />
                   </div>
+
+                  <PromptContractGuard
+                    kind="topic"
+                    systemInstruction={effectiveSystemInstruction}
+                    promptTemplate={effectivePromptTemplate}
+                  />
 
                   {/* Keywords JSON */}
                   <div>
@@ -472,6 +591,7 @@ export default function TopicPresetsPage() {
                       placeholder='["viral", "short", "engaging"]'
                     />
                   </div>
+                  </AdvancedSection>
                 </>
               )}
             </div>

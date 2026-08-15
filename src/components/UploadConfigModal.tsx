@@ -7,7 +7,7 @@ import { Trash2, Plus } from "lucide-react";
 interface UploadConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (configJson: string) => void;
+  onSave: (configJson: string) => void | Promise<void>;
   initialConfig?: string;
 }
 
@@ -17,7 +17,38 @@ type UploadTarget = {
   descriptionTemplate: string;
   privacyStatus: string;
   platformTags: string[];
+  categoryId?: string;
+  defaultLanguage?: string;
+  containsSyntheticMedia?: boolean;
+  selfDeclaredMadeForKids?: boolean;
+  notifySubscribers?: boolean;
 };
+
+const normalizeTarget = (raw: any): UploadTarget => ({
+  socialChannelId: Number(raw.socialChannelId ?? raw.SocialChannelId ?? 0),
+  titleTemplate: raw.titleTemplate ?? raw.TitleTemplate ?? "{Title}",
+  descriptionTemplate: raw.descriptionTemplate ?? raw.DescriptionTemplate ?? "{Description}",
+  privacyStatus: raw.privacyStatus ?? raw.PrivacyStatus ?? "private",
+  platformTags: raw.platformTags ?? raw.PlatformTags ?? [],
+  categoryId: raw.categoryId ?? raw.CategoryId ?? "22",
+  defaultLanguage: raw.defaultLanguage ?? raw.DefaultLanguage ?? "en",
+  containsSyntheticMedia: Boolean(raw.containsSyntheticMedia ?? raw.ContainsSyntheticMedia ?? false),
+  selfDeclaredMadeForKids: Boolean(raw.selfDeclaredMadeForKids ?? raw.SelfDeclaredMadeForKids ?? false),
+  notifySubscribers: Boolean(raw.notifySubscribers ?? raw.NotifySubscribers ?? false),
+});
+
+const createTargetFromChannel = (channel: SocialChannelListDto): UploadTarget => ({
+  socialChannelId: channel.id,
+  titleTemplate: "{Title}",
+  descriptionTemplate: "{Description}",
+  privacyStatus: "private",
+  platformTags: [],
+  categoryId: "22",
+  defaultLanguage: "en",
+  containsSyntheticMedia: false,
+  selfDeclaredMadeForKids: false,
+  notifySubscribers: false,
+});
 
 export default function UploadConfigModal({ isOpen, onClose, onSave, initialConfig }: UploadConfigModalProps) {
   const [channels, setChannels] = useState<SocialChannelListDto[]>([]);
@@ -35,7 +66,8 @@ export default function UploadConfigModal({ isOpen, onClose, onSave, initialConf
       if (initialConfig) {
         try {
           const parsed = JSON.parse(initialConfig);
-          if (parsed.Targets) setTargets(parsed.Targets);
+          const parsedTargets = parsed.Targets ?? parsed.targets;
+          setTargets(Array.isArray(parsedTargets) ? parsedTargets.map(normalizeTarget) : []);
         } catch (e) { console.error("JSON Parse Error", e); }
       } else {
         setTargets([]);
@@ -47,14 +79,23 @@ export default function UploadConfigModal({ isOpen, onClose, onSave, initialConf
     if (!selectedChannelId) return;
     const channel = channels.find(c => c.id.toString() === selectedChannelId);
     if (!channel) return;
+    if (targets.some(t => t.socialChannelId === channel.id)) {
+      setSelectedChannelId("");
+      return;
+    }
 
     // Varsayılan şablonlar
     const newTarget: UploadTarget = {
       socialChannelId: channel.id,
-      titleTemplate: channel.platform === 'YouTube' ? "{Title} #Shorts" : "{Title}",
+      titleTemplate: "{Title}",
       descriptionTemplate: "{Description}", 
       privacyStatus: "private",
-      platformTags: []
+      platformTags: [],
+      categoryId: "22",
+      defaultLanguage: "en",
+      containsSyntheticMedia: false,
+      selfDeclaredMadeForKids: false,
+      notifySubscribers: false,
     };
 
     setTargets([...targets, newTarget]);
@@ -65,12 +106,24 @@ export default function UploadConfigModal({ isOpen, onClose, onSave, initialConf
     setTargets(targets.filter((_, i) => i !== idx));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const pendingChannel = selectedChannelId
+      ? channels.find(c => c.id.toString() === selectedChannelId)
+      : null;
+    const finalTargets = pendingChannel && !targets.some(t => t.socialChannelId === pendingChannel.id)
+      ? [...targets, createTargetFromChannel(pendingChannel)]
+      : targets;
+
     const config = {
       DefaultPrivacy: "private",
-      Targets: targets
+      DefaultCategoryId: "22",
+      DefaultLanguage: "en",
+      DefaultSelfDeclaredMadeForKids: false,
+      DefaultContainsSyntheticMedia: false,
+      DefaultNotifySubscribers: false,
+      Targets: finalTargets
     };
-    onSave(JSON.stringify(config));
+    await onSave(JSON.stringify(config));
     onClose();
   };
 
@@ -85,7 +138,13 @@ export default function UploadConfigModal({ isOpen, onClose, onSave, initialConf
             </HelpLabel>
             <Select 
               value={selectedChannelId} 
-              onChange={setSelectedChannelId}
+              onChange={(value) => {
+                setSelectedChannelId(value);
+                const channel = channels.find(c => c.id.toString() === value);
+                if (!channel || targets.some(t => t.socialChannelId === channel.id)) return;
+                setTargets(prev => [...prev, createTargetFromChannel(channel)]);
+                setSelectedChannelId("");
+              }}
               options={channels.map(c => ({ label: `${c.platform} - ${c.channelName}`, value: c.id.toString() }))}
               placeholder="Kanal Seç..."
             />
@@ -162,6 +221,81 @@ export default function UploadConfigModal({ isOpen, onClose, onSave, initialConf
                        }}
                        options={[{label:"Private", value:"private"}, {label:"Public", value:"public"}, {label:"Unlisted", value:"unlisted"}]}
                        className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <HelpLabel className="text-[10px]" help="YouTube kategori ID. 22 = People & Blogs. Egitim icin 27, bilim/teknoloji icin 28 dusunulebilir.">
+                      Kategori ID
+                    </HelpLabel>
+                    <Input
+                      value={t.categoryId || "22"}
+                      onChange={e => {
+                        const newTargets = [...targets];
+                        newTargets[idx].categoryId = e.target.value;
+                        setTargets(newTargets);
+                      }}
+                      className="h-7 text-xs"
+                      placeholder="22"
+                    />
+                  </div>
+                  <div>
+                    <HelpLabel className="text-[10px]" help="YouTube metadata dili. Ingilizce long-form icin en, Turkce icin tr kullan.">
+                      Dil
+                    </HelpLabel>
+                    <Input
+                      value={t.defaultLanguage || "en"}
+                      onChange={e => {
+                        const newTargets = [...targets];
+                        newTargets[idx].defaultLanguage = e.target.value;
+                        setTargets(newTargets);
+                      }}
+                      className="h-7 text-xs"
+                      placeholder="en"
+                    />
+                  </div>
+                  <div>
+                    <HelpLabel className="text-[10px]" help="Gercekci sekilde degistirilmis/sentetik insan, olay veya mekan icerigi varsa YouTube'a bildir. Doodle/stick figure icin genelde kapali kalabilir.">
+                      Synthetic Media
+                    </HelpLabel>
+                    <Select
+                      value={String(Boolean(t.containsSyntheticMedia))}
+                      onChange={val => {
+                        const newTargets = [...targets];
+                        newTargets[idx].containsSyntheticMedia = val === "true";
+                        setTargets(newTargets);
+                      }}
+                      options={[{ label: "Hayir", value: "false" }, { label: "Evet", value: "true" }]}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <HelpLabel className="text-[10px]" help="Video cocuklara ozel uretilmediyse kapali kalmali. Yanlis acmak yorum/reklam/onerim davranisini etkileyebilir.">
+                      Made for Kids
+                    </HelpLabel>
+                    <Select
+                      value={String(Boolean(t.selfDeclaredMadeForKids))}
+                      onChange={val => {
+                        const newTargets = [...targets];
+                        newTargets[idx].selfDeclaredMadeForKids = val === "true";
+                        setTargets(newTargets);
+                      }}
+                      options={[{ label: "Hayir", value: "false" }, { label: "Evet", value: "true" }]}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <HelpLabel className="text-[10px]" help="Public uploadlarda abonelere bildirim gitsin mi? Test/deneme uretimlerinde kapali tutmak daha guvenli.">
+                      Abone Bildirimi
+                    </HelpLabel>
+                    <Select
+                      value={String(Boolean(t.notifySubscribers))}
+                      onChange={val => {
+                        const newTargets = [...targets];
+                        newTargets[idx].notifySubscribers = val === "true";
+                        setTargets(newTargets);
+                      }}
+                      options={[{ label: "Kapali", value: "false" }, { label: "Acik", value: "true" }]}
+                      className="h-7 text-xs"
                     />
                   </div>
                 </div>

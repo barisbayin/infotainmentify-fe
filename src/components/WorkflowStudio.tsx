@@ -58,11 +58,14 @@ type WorkflowNodePositionMap = Record<string, { x: number; y: number }>;
 
 const STAGE_LABELS: Record<string, string> = {
   Topic: "Konu",
+  CreativeDirector: "Creative Director",
   Script: "Senaryo",
+  Storyboard: "Storyboard",
   Image: "Gorsel",
   Tts: "Seslendirme",
   Stt: "Altyazi Zamanlama",
   VideoAI: "Video AI",
+  EditPlan: "Edit Plan",
   SceneLayout: "Kurgu / Timeline",
   Render: "Final Render",
   Thumbnail: "Kapak",
@@ -71,11 +74,14 @@ const STAGE_LABELS: Record<string, string> = {
 
 const STAGE_HINTS: Record<string, string> = {
   Topic: "Video fikrini ve ana aciyi uretir. Senaryo adimi bu ciktiyi kullanir.",
+  CreativeDirector: "Topic ciktisindan video vaadi, ana soru, hook, bolum yapisi ve retention stratejisi uretir.",
   Script: "Konu ciktisindan baslik, aciklama, etiket ve sahneli anlatim uretir.",
+  Storyboard: "Senaryodan sahne ritmi, shot cesidi, kamera hareketi ve visual beat planini uretir.",
   Image: "Senaryo sahnelerinden gorsel uretir veya gorsel asset hazirlar.",
   Tts: "Senaryodaki anlatim metnini ses dosyalarina cevirir.",
   Stt: "Ses dosyasindan kelime zamanlari cikarir; altyazi ve render icin kullanilir.",
   VideoAI: "Gelecek text/image-to-video adimi. Executor aktif degilse hazirlik kontrolu blokaj verir.",
+  EditPlan: "Gorsel, ses, storyboard ve kelime zamanlarindan editor gibi cut, tempo ve beat kararlari uretir.",
   SceneLayout: "Senaryo, gorsel ve sesleri final zaman cizelgesine dizer.",
   Render: "Timeline planini FFmpeg ile final video dosyasina cevirir.",
   Thumbnail: "Baslik ve gorsel stilden kapak gorseli uretir.",
@@ -711,8 +717,11 @@ const LONG_FORM_REQUIRED_STAGES = [
   "Image",
   "Tts",
   "Stt",
+  "EditPlan",
   "SceneLayout",
+  "Thumbnail",
   "Render",
+  "Upload",
 ];
 
 function WorkflowReadinessPanel({
@@ -817,10 +826,13 @@ function buildReadinessChecks(health: PipelineTemplateHealthDto): ReadinessCheck
     stages.find((stage) => stage.stageType.toLowerCase() === stageType.toLowerCase());
   const hasStage = (stageType: string) => Boolean(findStage(stageType));
   const missingLongStages = LONG_FORM_REQUIRED_STAGES.filter((stageType) => !hasStage(stageType));
+  const creativeDirectorStage = findStage("CreativeDirector");
   const scriptStage = findStage("Script");
+  const storyboardStage = findStage("Storyboard");
   const imageStage = findStage("Image");
   const ttsStage = findStage("Tts");
   const sttStage = findStage("Stt");
+  const editPlanStage = findStage("EditPlan");
   const renderStage = findStage("Render");
   const thumbnailStage = findStage("Thumbnail");
   const uploadStage = findStage("Upload");
@@ -849,11 +861,11 @@ function buildReadinessChecks(health: PipelineTemplateHealthDto): ReadinessCheck
       label: "Adim omurgasi",
       value: missingLongStages.length
         ? `Eksik: ${missingLongStages.map((stageType) => STAGE_LABELS[stageType] ?? stageType).join(", ")}`
-        : "Konu -> Render",
+        : "Konu -> Upload",
       state: missingLongStages.length ? (isLongForm ? "blocked" : "warning") : "ready",
       detail: missingLongStages.length
         ? "Uzun video akisi icin temel adim zinciri tamamlanmali."
-        : "Konu, senaryo, gorsel, ses, timeline ve render zinciri mevcut.",
+        : "Konu, senaryo, gorsel, ses, edit plan, timeline, kapak, render ve upload zinciri mevcut.",
     },
     {
       label: "Preset / baglanti",
@@ -864,12 +876,38 @@ function buildReadinessChecks(health: PipelineTemplateHealthDto): ReadinessCheck
         : "Adim presetleri ve baglantilar hazirlik kontrolunde blokaj vermiyor.",
     },
     {
+      label: "Creative Director",
+      value: creativeDirectorStage ? "Strateji katmani" : "Onerilir",
+      state: creativeDirectorStage
+        ? (hasError(creativeDirectorStage.severity) ? "warning" : "ready")
+        : isLongForm ? "warning" : "info",
+      detail: creativeDirectorStage
+        ? "Video vaadi, ana soru, bolum yapisi ve retention stratejisi senaryoya aktarilacak."
+        : "Uzun videoda Topic ile Script arasina Creative Director eklemek akisi daha insan yapimi hissettirir.",
+    },
+    {
       label: "Script suresi",
       value: scriptStage?.targetDurationSec ? `${scriptStage.targetDurationSec} sn` : "Bilinmiyor",
       state: scriptDurationOk ? "ready" : isLongForm ? "warning" : "info",
       detail: scriptDurationOk
         ? "8 dakika ve uzeri hedef sure long-form icin uygun."
         : "Long-form icin 480-900 sn ilk test bandi daha saglikli olur.",
+    },
+    {
+      label: "Storyboard",
+      value: storyboardStage ? "Yonetmen plani" : "Onerilir",
+      state: storyboardStage ? (hasError(storyboardStage.severity) ? "warning" : "ready") : isLongForm ? "warning" : "info",
+      detail: storyboardStage
+        ? "Sahneler image asamasindan once visual beat ve shot planina ayrilacak."
+        : "Uzun videoda tekduze gorsel akisini kirmak icin Script ile Image arasina Storyboard ekle.",
+    },
+    {
+      label: "Edit Plan",
+      value: editPlanStage ? "Kurgu beyni" : "Eksik",
+      state: editPlanStage ? (hasError(editPlanStage.severity) ? "warning" : "ready") : isLongForm ? "blocked" : "info",
+      detail: editPlanStage
+        ? "Render oncesi cut, tempo, motion ve beat sureleri editor karariyla planlanacak."
+        : "Uzun videoda insan kurgusuna yaklasmak icin STT ile SceneLayout arasina EditPlan ekle.",
     },
     {
       label: "Gorsel / render",

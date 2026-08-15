@@ -1,0 +1,1 @@
+import{h as e}from"./index-DK2vGQ9s.js";const p={list(){return e("/api/stt-presets")},get(t){return e(`/api/stt-presets/${t}`)},create(t){return e("/api/stt-presets",{method:"POST",body:JSON.stringify(t)})},update(t,s){return e(`/api/stt-presets/${t}`,{method:"PUT",body:JSON.stringify(s)})},delete(t){return e(`/api/stt-presets/${t}`,{method:"DELETE"})}};export{p as s};

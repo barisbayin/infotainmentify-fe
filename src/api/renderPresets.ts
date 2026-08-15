@@ -5,8 +5,8 @@ import { http } from "./http";
 // ---------------------------------------------------------------------------
 
 // String Enum Type Definitions (Backend uyumlu)
-export type CaptionAnimationTypes = "None" | "PopUp" | "Typewriter" | "SlideUp" | "WordByWord";
-export type CaptionPositionTypes = "Top" | "Bottom" | "Center";
+export type CaptionAnimationTypes = "None" | "PopUp" | "Typewriter" | "FadeIn" | "SlideUp" | "WordByWord";
+export type CaptionPositionTypes = "Top" | "Bottom" | "Center" | "Custom";
 
 // ---------------------------------------------------------------------------
 // SUB-SETTINGS DTOs
@@ -33,10 +33,26 @@ export type RenderAudioMixSettingsDto = {
     voiceVolumePercent: number;
     musicVolumePercent: number;
     sfxVolumePercent: number;
+    enableSfx: boolean;
+    useSyntheticSfxFallback: boolean;
+    sfxLibraryPath?: string;
     enableDucking: boolean;
     duckingFactor: number;
     fadeAudioInOut: boolean;
     fadeDurationSec: number;
+    enableVoiceLoudnessNormalization: boolean;
+    voiceLoudnessTargetI: number;
+    voiceLoudnessTargetTp: number;
+    voiceLoudnessRange: number;
+    duckingThreshold: number;
+    duckingRatio: number;
+    duckingAttackMs: number;
+    duckingReleaseMs: number;
+    finalAudioBitrateKbps: number;
+    enableFinalAudioQa: boolean;
+    enableEditorAudioCuts: boolean;
+    maxEditorAudioOffsetSec: number;
+    voiceMicroFadeSec: number;
 };
 
 export type RenderVisualEffectsSettingsDto = {
@@ -49,6 +65,17 @@ export type RenderVisualEffectsSettingsDto = {
     minSceneDurationForBrollSec: number;
     brollSegmentDurationSec: number;
     maxBrollCutsPerScene: number;
+    enableOverlayText: boolean;
+    outroHoldSec: number;
+    enableEditorialTiming: boolean;
+    hookMinVisualHoldSec: number;
+    bodyMinVisualHoldSec: number;
+    emphasisMinVisualHoldSec: number;
+    maxVisualHoldSec: number;
+    anchorSnapWindowSec: number;
+    anchorMinConfidence: number;
+    fastCutThresholdSec: number;
+    maxConsecutiveFastCuts: number;
 };
 
 export type RenderBrandingSettingsDto = {

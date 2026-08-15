@@ -1,7 +1,7 @@
 import { http } from "./http";
 
 // Asset Türleri (Backend Enum ile uyumlu string'ler)
-export type AssetType = "Music" | "Font" | "Branding";
+export type AssetType = "Music" | "Font" | "Branding" | "Image";
 
 // Listeleme Ekranı için (Hafif Veri)
 export type AssetListDto = {

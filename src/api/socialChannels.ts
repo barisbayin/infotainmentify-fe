@@ -18,6 +18,9 @@ export type SocialChannelDetailDto = {
     isTokenExpired: boolean;
     tokenExpiresAt?: string;
     scopes?: string;
+    hasTokens?: boolean;
+    hasRequiredScopes?: boolean;
+    requiresReauthorization?: boolean;
     rawTokensJson?: string;
     encryptedTokensJson?: string;
 };
@@ -30,6 +33,19 @@ export type SaveSocialChannelDto = {
     platformChannelId?: string;
     rawTokensJson?: string; // JSON string (access_token vs.)
     scopes?: string;
+};
+
+export type YouTubeOAuthStartDto = {
+    authorizationUrl: string;
+    expiresAtUtc: string;
+    requiredScope: string;
+};
+
+export type YouTubeOAuthResultDto = {
+    channelId: number;
+    channelName: string;
+    scopes: string;
+    tokenExpiresAt?: string;
 };
 
 // Enum Mapping (Backend Core.Enums.SocialChannelType ile uyumlu olmalı)
@@ -62,6 +78,19 @@ export const socialChannelsApi = {
         return http<void>(`/api/social-channels/${id}`, {
             method: "PUT",
             body: JSON.stringify(dto),
+        });
+    },
+
+    startYouTubeOAuth(id: number) {
+        return http<YouTubeOAuthStartDto>(`/api/social-channels/${id}/youtube/oauth/start`, {
+            method: "POST",
+        });
+    },
+
+    completeYouTubeOAuth(code: string, state: string) {
+        return http<YouTubeOAuthResultDto>(`/api/social-channels/youtube/oauth/complete`, {
+            method: "POST",
+            body: JSON.stringify({ code, state }),
         });
     },
 

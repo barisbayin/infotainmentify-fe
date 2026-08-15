@@ -2,11 +2,14 @@ import { http } from "./http";
 
 export const STAGE_TYPES = [
     { value: "Topic", label: "Konu (Topic)" },
+    { value: "CreativeDirector", label: "Creative Director" },
     { value: "Script", label: "Senaryo (Script)" },
+    { value: "Storyboard", label: "Storyboard" },
     { value: "Image", label: "Gorsel (Image)" },
     { value: "Tts", label: "Seslendirme (TTS)" },
     { value: "Stt", label: "Desifre (STT)" },
     { value: "VideoAI", label: "Video AI" },
+    { value: "EditPlan", label: "Edit Plan" },
     { value: "SceneLayout", label: "Kurgu/Timeline" },
     { value: "Render", label: "Render (Birlestirme)" },
     { value: "Thumbnail", label: "Kapak (Thumbnail)" },

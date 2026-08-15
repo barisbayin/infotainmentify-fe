@@ -135,6 +135,148 @@ body select:hover {
   background-color: transparent;
 }
 
+/* Central density mode: protected app pages use a tighter admin-tool rhythm. */
+body.app-compact main .p-8,
+body.app-compact .ui-modal-surface .p-8 {
+  padding: 1.25rem !important;
+}
+
+body.app-compact main .p-6,
+body.app-compact .ui-modal-surface .p-6 {
+  padding: 1rem !important;
+}
+
+body.app-compact main .p-5,
+body.app-compact .ui-modal-surface .p-5 {
+  padding: 0.875rem !important;
+}
+
+body.app-compact main .p-4,
+body.app-compact .ui-modal-surface .p-4 {
+  padding: 0.75rem !important;
+}
+
+body.app-compact main .px-6,
+body.app-compact .ui-modal-surface .px-6 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+body.app-compact main .px-5,
+body.app-compact .ui-modal-surface .px-5,
+body.app-compact main .px-4,
+body.app-compact .ui-modal-surface .px-4 {
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+}
+
+body.app-compact main .py-6,
+body.app-compact .ui-modal-surface .py-6 {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+body.app-compact main .py-5,
+body.app-compact .ui-modal-surface .py-5,
+body.app-compact main .py-4,
+body.app-compact .ui-modal-surface .py-4 {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+body.app-compact main .py-3,
+body.app-compact .ui-modal-surface .py-3 {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+body.app-compact main .py-12 {
+  padding-top: 2rem !important;
+  padding-bottom: 2rem !important;
+}
+
+body.app-compact main .gap-6,
+body.app-compact .ui-modal-surface .gap-6 {
+  gap: 1rem !important;
+}
+
+body.app-compact main .gap-5,
+body.app-compact .ui-modal-surface .gap-5 {
+  gap: 0.875rem !important;
+}
+
+body.app-compact main .gap-4,
+body.app-compact .ui-modal-surface .gap-4 {
+  gap: 0.75rem !important;
+}
+
+body.app-compact main .space-y-6 > :not([hidden]) ~ :not([hidden]),
+body.app-compact .ui-modal-surface .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse))) !important;
+  margin-bottom: calc(1rem * var(--tw-space-y-reverse)) !important;
+}
+
+body.app-compact main .space-y-5 > :not([hidden]) ~ :not([hidden]),
+body.app-compact .ui-modal-surface .space-y-5 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.875rem * calc(1 - var(--tw-space-y-reverse))) !important;
+  margin-bottom: calc(0.875rem * var(--tw-space-y-reverse)) !important;
+}
+
+body.app-compact main .space-y-4 > :not([hidden]) ~ :not([hidden]),
+body.app-compact .ui-modal-surface .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse))) !important;
+  margin-bottom: calc(0.75rem * var(--tw-space-y-reverse)) !important;
+}
+
+body.app-compact main .h-12,
+body.app-compact .ui-modal-surface .h-12 {
+  height: 2.5rem !important;
+}
+
+body.app-compact main .h-10,
+body.app-compact .ui-modal-surface .h-10 {
+  height: 2.25rem !important;
+}
+
+body.app-compact main .h-9,
+body.app-compact .ui-modal-surface .h-9 {
+  height: 2rem !important;
+}
+
+body.app-compact main .min-h-\[100px\],
+body.app-compact .ui-modal-surface .min-h-\[100px\] {
+  min-height: 84px !important;
+}
+
+body.app-compact main h1.text-xl,
+body.app-compact main .text-xl {
+  font-size: 1.125rem !important;
+  line-height: 1.55rem !important;
+}
+
+body.app-compact main .text-lg {
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+}
+
+body.app-compact main .text-base {
+  font-size: 0.875rem !important;
+  line-height: 1.35rem !important;
+}
+
+body.app-compact main .rounded-2xl,
+body.app-compact .ui-modal-surface .rounded-2xl {
+  border-radius: 0.75rem !important;
+}
+
+body.app-compact main .rounded-xl,
+body.app-compact .ui-modal-surface .rounded-xl {
+  border-radius: 0.625rem !important;
+}
+
 /* App yüksekliği ve scroll kontrolü */
 html,
 body,

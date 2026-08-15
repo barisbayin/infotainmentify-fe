@@ -4,7 +4,15 @@ import { Bell, Check, ChevronDown, Activity, Loader2 } from "lucide-react";
 import { cn, Card } from "./ui-kit";
 
 // --- NOTIFICATION CENTER (HEADER BUTTON & POPOVER) ---
-export function NotificationCenter() {
+export function NotificationCenter({
+  compact = false,
+  placement = "bottom",
+  align = "right",
+}: {
+  compact?: boolean;
+  placement?: "top" | "bottom";
+  align?: "left" | "right";
+} = {}) {
   const { notifications, unreadCount, markAllAsRead, markAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -24,7 +32,11 @@ export function NotificationCenter() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-800 focus:outline-none"
+        className={cn(
+          "relative text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-800 focus:outline-none",
+          compact ? "flex h-10 w-10 items-center justify-center" : "p-2"
+        )}
+        title="Bildirimler"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
@@ -33,7 +45,13 @@ export function NotificationCenter() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-80 sm:w-96 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+        <div
+          className={cn(
+            "absolute z-50 w-80 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl sm:w-96",
+            placement === "top" ? "bottom-full mb-2 animate-in fade-in slide-in-from-bottom-2" : "top-full mt-2 animate-in fade-in slide-in-from-top-2",
+            align === "left" ? "left-0" : "right-0"
+          )}
+        >
           <div className="flex items-center justify-between p-3 border-b border-zinc-800 bg-zinc-950/50">
             <span className="text-sm font-semibold text-zinc-200">Bildirimler</span>
             {notifications.length > 0 && (

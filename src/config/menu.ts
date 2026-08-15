@@ -1,6 +1,6 @@
 import {
     Home, FileText, Sparkles, Settings, ListChecks, Cpu, Shield,
-    BookOpen, Award, Video, Cast, Film, Layers, Zap, FolderOpen, Image, Mic2, Speech, LayoutTemplate
+    BookOpen, Award, Video, Cast, Film, Layers, Zap, FolderOpen, Image, Mic2, Speech, LayoutTemplate, WandSparkles, Braces, Package
 } from "lucide-react";
 
 export const MENU_CONFIG = [
@@ -16,9 +16,12 @@ export const MENU_CONFIG = [
         icon: Sparkles,
         items: [
             { to: "/concepts", label: "Konseptler & Markalar", icon: FolderOpen },
+            { to: "/concept-studio", label: "Concept Studio", icon: Sparkles },
+            { to: "/production-briefs", label: "Brief Kutuphanesi", icon: FileText },
             { to: "/topics", label: "Fikir Havuzu (Topics)", icon: Zap },
             { to: "/scripts", label: "Senaryolar", icon: BookOpen },
             { to: "/prompts", label: "Prompt Kütüphanesi", icon: FileText },
+            { to: "/prompt-studio", label: "Prompt Studio", icon: Braces },
             { to: "/topic-presets", label: "Konu Ayarları", icon: Settings },
             { to: "/script-presets", label: "Senaryo Ayarları", icon: Award },
             { to: "/tts-presets", label: "TTS Ayarları", icon: Speech },
@@ -32,6 +35,8 @@ export const MENU_CONFIG = [
         title: "VİDEO STÜDYOSU",
         icon: Video,
         items: [
+            { to: "/production-wizard", label: "Uretim Wizard", icon: WandSparkles },
+            { to: "/production-kits", label: "Production Kits", icon: Package },
             { to: "/pipeline-runs", label: "Üretim Hattı (Pipeline)", icon: Layers },
             { to: "/pipeline-templates", label: "Üretim Hattı Şablonları", icon: LayoutTemplate },
             { to: "/pipeline-history", label: "Yayın Geçmişi", icon: ListChecks }, // 🔥 EKLENDİ

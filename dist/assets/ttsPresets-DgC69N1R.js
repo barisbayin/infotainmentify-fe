@@ -1,0 +1,1 @@
+import{h as e}from"./index-DK2vGQ9s.js";const p={list(){return e("/api/tts-presets")},get(t){return e(`/api/tts-presets/${t}`)},create(t){return e("/api/tts-presets",{method:"POST",body:JSON.stringify(t)})},update(t,s){return e(`/api/tts-presets/${t}`,{method:"PUT",body:JSON.stringify(s)})},delete(t){return e(`/api/tts-presets/${t}`,{method:"DELETE"})}};export{p as t};
